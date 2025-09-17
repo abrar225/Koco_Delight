@@ -30,6 +30,7 @@ const windowHalfY = window.innerHeight / 2;
 let boxItems = [];
 let userLocation = null;
 let currentUser = null;
+let userAddresses = [];
 
 // Chocolate Data
 const chocolateData = [
@@ -131,6 +132,7 @@ auth.onAuthStateChanged(user => {
                 } else {
                     const userData = doc.data();
                     if (userData.addresses && userData.addresses.length > 0) {
+                        userAddresses = userData.addresses;
                         displaySavedAddresses(userData.addresses);
                     }
                 }
@@ -140,6 +142,7 @@ auth.onAuthStateChanged(user => {
             });
     } else {
         currentUser = null;
+        userAddresses = [];
         updateUIForSignedOut();
     }
 });
@@ -179,7 +182,7 @@ function updateUIForSignedOut() {
 function signInWithGoogle() {
     auth.signInWithPopup(googleProvider)
         .then((result) => {
-            showCustomAlert('Successfully signed in!', 'success');
+            showCustomAlert('Successfully signed in! Welcome to Koco Delight!', 'success');
             // Request location permission after sign-in
             setTimeout(() => {
                 if (navigator.geolocation) {
@@ -189,7 +192,11 @@ function signInWithGoogle() {
         })
         .catch((error) => {
             console.error('Sign-in error:', error);
-            showCustomAlert(error.message, 'error');
+            if (error.code === 'auth/unauthorized-domain') {
+                showCustomAlert(`Add this origin to Firebase Authorized domains: ${window.location.host}`, 'error');
+            } else {
+                showCustomAlert(error.message, 'error');
+            }
         });
 }
 
@@ -197,6 +204,11 @@ function signOut() {
     auth.signOut()
         .then(() => {
             showCustomAlert('Successfully signed out', 'success');
+            // Clear user data
+            boxItems = [];
+            userLocation = null;
+            userAddresses = [];
+            updateBox();
         })
         .catch((error) => {
             console.error('Sign-out error:', error);
@@ -247,8 +259,8 @@ function getCurrentLocation() {
                     const address = `${data.city}, ${data.principalSubdivision}, ${data.countryName}`;
                     userLocation = address;
                     
-                    const customerAddress = document.getElementById('customer-address');
-                    if (customerAddress) customerAddress.value = address;
+                    const manualAddress = document.getElementById('manual-address');
+                    if (manualAddress) manualAddress.value = address;
                     
                     status.textContent = 'Location found!';
                     
@@ -294,6 +306,7 @@ function saveAddressToProfile(address) {
                 // Add new address if not already exists
                 if (!addresses.includes(address)) {
                     addresses.push(address);
+                    userAddresses = addresses;
                     
                     // Update user document
                     return db.collection('users').doc(currentUser.uid).update({
@@ -304,7 +317,7 @@ function saveAddressToProfile(address) {
         })
         .then(() => {
             // Refresh saved addresses display
-            if (addresses) displaySavedAddresses(addresses);
+            displaySavedAddresses(userAddresses);
         })
         .catch(error => {
             console.error('Error saving address:', error);
@@ -317,21 +330,29 @@ function displaySavedAddresses(addresses) {
     
     container.innerHTML = '';
     
-    addresses.forEach((address, index) => {
-        const pill = document.createElement('div');
-        pill.className = 'bg-bronze/20 border border-bronze/30 rounded-full px-3 py-2 text-sm text-primary-light cursor-pointer hover:bg-bronze/30 transition-colors duration-300';
-        pill.innerHTML = `<i class="fas fa-map-marker-alt mr-2 text-bronze"></i> ${address}`;
-        pill.addEventListener('click', () => {
-            // Remove active class from all pills
-            document.querySelectorAll('.saved-location-pill').forEach(p => p.classList.remove('bg-gold/20', 'border-gold/30'));
-            pill.classList.add('bg-gold/20', 'border-gold/30');
-            
-            const customerAddress = document.getElementById('customer-address');
-            if (customerAddress) customerAddress.value = address;
-            userLocation = address;
+    if (addresses && addresses.length > 0) {
+        addresses.forEach((address, index) => {
+            const pill = document.createElement('div');
+            pill.className = 'bg-bronze/20 border border-bronze/30 rounded-full px-3 py-2 text-sm text-primary-light cursor-pointer hover:bg-bronze/30 transition-colors duration-300 saved-location-pill';
+            pill.innerHTML = `<i class="fas fa-map-marker-alt mr-2 text-bronze"></i> ${address}`;
+            pill.addEventListener('click', () => {
+                // Remove active class from all pills
+                document.querySelectorAll('.saved-location-pill').forEach(p => {
+                    p.classList.remove('bg-gold/20', 'border-gold/30');
+                    p.classList.add('bg-bronze/20', 'border-bronze/30');
+                });
+                
+                // Add active class to clicked pill
+                pill.classList.remove('bg-bronze/20', 'border-bronze/30');
+                pill.classList.add('bg-gold/20', 'border-gold/30');
+                
+                const manualAddress = document.getElementById('manual-address');
+                if (manualAddress) manualAddress.value = address;
+                userLocation = address;
+            });
+            container.appendChild(pill);
         });
-        container.appendChild(pill);
-    });
+    }
 }
 
 // 3D Scene Initialization
@@ -746,6 +767,7 @@ function initCustomizeAndOrder() {
         clearBoxBtn.addEventListener('click', () => {
             boxItems = [];
             updateBox();
+            showCustomAlert('Box cleared!', 'success');
         });
     }
     
@@ -808,15 +830,24 @@ function updateBox() {
     boxContainer.querySelectorAll('.remove-item').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const index = parseInt(e.target.dataset.index);
+            const removedItem = boxItems[index];
             boxItems.splice(index, 1);
             updateBox();
+            showCustomAlert(`${removedItem.name} removed from box`, 'success');
         });
     });
 }
 
-// Order System (simplified for demo)
+// Full Order System Implementation
 function initOrderSystem() {
     const proceedBtn = document.getElementById('proceed-to-order-btn');
+    const orderModal = document.getElementById('order-modal');
+    const cancelBtn = document.getElementById('cancel-order-btn');
+    const orderForm = document.getElementById('order-form');
+    const orderStatusEl = document.getElementById('order-status');
+    const confirmBtn = document.getElementById('confirm-order-btn');
+    const orderSummary = document.getElementById('order-summary');
+    const modalTotalPrice = document.getElementById('modal-total-price');
     
     if (proceedBtn) {
         proceedBtn.addEventListener('click', () => {
@@ -832,9 +863,273 @@ function initOrderSystem() {
                 return;
             }
             
-            showCustomAlert('Order functionality coming soon!', 'info');
+            // Open location modal first if no location is set
+            if (!userLocation) {
+                showCustomAlert('Please set your delivery address first', 'info');
+                openLocationModal();
+                return;
+            }
+            
+            // Show order modal with populated data
+            showOrderModal();
         });
     }
+    
+    // Order form submission
+    if (orderForm) {
+        orderForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await processOrder();
+        });
+    }
+    
+    // Cancel order
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeOrderModal);
+    }
+}
+
+function showOrderModal() {
+    const modal = document.getElementById('order-modal');
+    const orderSummary = document.getElementById('order-summary');
+    const modalTotalPrice = document.getElementById('modal-total-price');
+    const customerName = document.getElementById('customer-name');
+    const customerEmail = document.getElementById('customer-email');
+    const customerAddress = document.getElementById('customer-address');
+    
+    if (!modal) return;
+    
+    // Populate order summary
+    if (orderSummary && modalTotalPrice) {
+        orderSummary.innerHTML = '';
+        let total = 0;
+        
+        boxItems.forEach(item => {
+            total += item.price;
+            const itemEl = document.createElement('div');
+            itemEl.className = 'flex justify-between items-center py-2 border-b border-bronze/20';
+            itemEl.innerHTML = `
+                <div class="flex items-center">
+                    <span class="text-lg mr-2">${item.emoji}</span>
+                    <span class="text-primary-light">${item.name}</span>
+                </div>
+                <span class="text-gold font-semibold">$${item.price.toFixed(2)}</span>
+            `;
+            orderSummary.appendChild(itemEl);
+        });
+        
+        modalTotalPrice.textContent = `${total.toFixed(2)}`;
+    }
+    
+    // Pre-fill customer info
+    if (customerName && currentUser) customerName.value = currentUser.displayName || '';
+    if (customerEmail && currentUser) customerEmail.value = currentUser.email || '';
+    if (customerAddress) customerAddress.value = userLocation || '';
+    
+    // Show modal with animation
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        const modalContent = modal.querySelector('div > div');
+        if (modalContent) modalContent.classList.remove('scale-95');
+    }, 10);
+}
+
+function closeOrderModal() {
+    const modal = document.getElementById('order-modal');
+    if (modal) {
+        modal.classList.add('opacity-0');
+        const modalContent = modal.querySelector('div > div');
+        if (modalContent) modalContent.classList.add('scale-95');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+}
+
+async function processOrder() {
+    const confirmBtn = document.getElementById('confirm-order-btn');
+    const orderStatusEl = document.getElementById('order-status');
+    const orderForm = document.getElementById('order-form');
+    
+    if (!currentUser) {
+        showCustomAlert('Please sign in to place an order', 'error');
+        closeOrderModal();
+        signInWithGoogle();
+        return;
+    }
+    
+    if (!userLocation) {
+        showCustomAlert('Please set a delivery location', 'error');
+        closeOrderModal();
+        openLocationModal();
+        return;
+    }
+    
+    if (boxItems.length === 0) {
+        showCustomAlert('Your box is empty. Please add some chocolates first.', 'error');
+        closeOrderModal();
+        return;
+    }
+    
+    const specialInstructions = orderForm.querySelector('textarea')?.value || '';
+    
+    // Show loading state
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Placing Order...';
+    }
+    
+    if (orderStatusEl) {
+        orderStatusEl.textContent = 'Processing your order...';
+        orderStatusEl.className = 'text-center font-semibold text-blue-400';
+    }
+    
+    try {
+        // Generate order ID
+        const orderId = generateOrderId();
+        
+        // Calculate totals
+        const subtotal = boxItems.reduce((sum, item) => sum + item.price, 0);
+        const deliveryFee = subtotal > 25 ? 0 : 3.99; // Free delivery over $25
+        const tax = subtotal * 0.08; // 8% tax
+        const total = subtotal + deliveryFee + tax;
+        
+        // Create order data
+        const orderData = {
+            orderId: orderId,
+            customerId: currentUser.uid,
+            customerName: currentUser.displayName || 'Customer',
+            customerEmail: currentUser.email,
+            customerPhone: '', // Could add phone field later
+            deliveryAddress: userLocation,
+            items: boxItems.map(item => ({
+                id: item.id,
+                name: item.name,
+                emoji: item.emoji,
+                price: item.price,
+                flavor: item.flavor
+            })),
+            itemCount: boxItems.length,
+            subtotal: parseFloat(subtotal.toFixed(2)),
+            deliveryFee: parseFloat(deliveryFee.toFixed(2)),
+            tax: parseFloat(tax.toFixed(2)),
+            totalPrice: parseFloat(total.toFixed(2)),
+            specialInstructions: specialInstructions,
+            status: 'pending',
+            estimatedDelivery: calculateDeliveryTime(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        // Save order to Firestore
+        await db.collection('orders').doc(orderId).set(orderData);
+        
+        // Update user's order history
+        if (currentUser) {
+            const userRef = db.collection('users').doc(currentUser.uid);
+            await userRef.update({
+                lastOrderId: orderId,
+                totalOrders: firebase.firestore.FieldValue.increment(1),
+                totalSpent: firebase.firestore.FieldValue.increment(total),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        
+        // Show success message
+        if (orderStatusEl) {
+            orderStatusEl.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-check-circle text-green-400 text-3xl mb-2"></i>
+                    <p class="text-green-400 font-bold text-lg">Order Placed Successfully!</p>
+                    <p class="text-primary-light text-sm mt-2">Order ID: ${orderId}</p>
+                    <p class="text-bronze text-sm">Estimated delivery: ${calculateDeliveryTime()}</p>
+                </div>
+            `;
+            orderStatusEl.className = 'text-center font-semibold text-green-400';
+        }
+        
+        // Send confirmation email (simulated)
+        await sendOrderConfirmation(orderData);
+        
+        // Clear the box
+        boxItems = [];
+        updateBox();
+        
+        // Reset form
+        if (orderForm) orderForm.reset();
+        
+        // Close modal after delay and show success
+        setTimeout(() => {
+            closeOrderModal();
+            showCustomAlert(`Order placed successfully! Order ID: ${orderId}. You'll receive a confirmation email shortly.`, 'success');
+            
+            // Reset button state
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = 'Confirm Order';
+            }
+            
+            if (orderStatusEl) {
+                orderStatusEl.textContent = '';
+                orderStatusEl.className = 'text-center font-semibold';
+            }
+        }, 3000);
+        
+    } catch (error) {
+        console.error('Order submission error:', error);
+        
+        if (orderStatusEl) {
+            orderStatusEl.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-exclamation-circle text-red-400 text-2xl mb-2"></i>
+                    <p class="text-red-400 font-bold">Failed to place order</p>
+                    <p class="text-bronze text-sm">Please try again or contact support</p>
+                </div>
+            `;
+            orderStatusEl.className = 'text-center font-semibold text-red-400';
+        }
+        
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = 'Confirm Order';
+        }
+        
+        showCustomAlert('Failed to place order. Please try again.', 'error');
+    }
+}
+
+// Helper Functions
+function generateOrderId() {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `KD${timestamp}${random}`;
+}
+
+function calculateDeliveryTime() {
+    const now = new Date();
+    const deliveryTime = new Date(now.getTime() + (45 * 60 * 1000)); // 45 minutes from now
+    return deliveryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+async function sendOrderConfirmation(orderData) {
+    // In a real app, this would trigger an email service
+    // For now, we'll simulate the email sending
+    console.log('Order confirmation sent:', orderData);
+    
+    // You could integrate with EmailJS, SendGrid, or your backend email service here
+    // Example with EmailJS (if you want to implement real emails):
+    /*
+    try {
+        await emailjs.send('service_id', 'template_id', {
+            to_email: orderData.customerEmail,
+            customer_name: orderData.customerName,
+            order_id: orderData.orderId,
+            total_price: orderData.totalPrice,
+            delivery_time: orderData.estimatedDelivery
+        });
+    } catch (error) {
+        console.error('Email sending failed:', error);
+    }
+    */
 }
 
 // Utility Functions
@@ -981,19 +1276,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (confirmLocationBtn) {
         confirmLocationBtn.addEventListener('click', () => {
             const manualAddress = document.getElementById('manual-address')?.value;
-            if (manualAddress) {
-                userLocation = manualAddress;
+            if (manualAddress && manualAddress.trim()) {
+                userLocation = manualAddress.trim();
                 // Save address to user profile if signed in
                 if (currentUser) {
-                    saveAddressToProfile(manualAddress);
+                    saveAddressToProfile(userLocation);
                 }
                 closeLocationModal();
                 showCustomAlert('Delivery location set successfully!', 'success');
             } else if (userLocation) {
                 closeLocationModal();
-                showCustomAlert('Delivery location set successfully!', 'success');
+                showCustomAlert('Delivery location confirmed!', 'success');
             } else {
-                showCustomAlert('Please set a delivery location', 'error');
+                showCustomAlert('Please enter a delivery address or use current location', 'error');
             }
         });
     }
