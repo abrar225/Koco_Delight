@@ -14,10 +14,13 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Google Auth Provider
+// Google Auth Provider with additional permissions
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 googleProvider.addScope('profile');
 googleProvider.addScope('email');
+googleProvider.setCustomParameters({
+    prompt: 'select_account'
+});
 
 // Global Variables
 let scene, camera, renderer;
@@ -29,6 +32,7 @@ const windowHalfX = window.innerWidth / 2;
 const windowHalfY = window.innerHeight / 2;
 let boxItems = [];
 let userLocation = null;
+let userPhone = null;
 let currentUser = null;
 let userAddresses = [];
 
@@ -111,29 +115,46 @@ const chocolateData = [
 // Initialize page immediately with fallback styles
 document.documentElement.classList.add('no-js');
 
-// Authentication State Management
+// Authentication State Management with Enhanced User Data
 auth.onAuthStateChanged(user => {
     if (user) {
         currentUser = user;
         updateUIForUser(user);
         
-        // Get or create user document in Firestore
+        // Get or create user document in Firestore with enhanced data
         db.collection('users').doc(user.uid).get()
             .then(doc => {
                 if (!doc.exists) {
-                    // Create new user document
+                    // Create new user document with additional fields
                     return db.collection('users').doc(user.uid).set({
                         name: user.displayName,
                         email: user.email,
                         photoURL: user.photoURL,
+                        phone: '', // Will be filled when user provides it
+                        addresses: [],
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        addresses: []
+                        lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        totalOrders: 0,
+                        totalSpent: 0,
+                        preferredPaymentMethod: '',
+                        deliveryNotes: ''
                     });
                 } else {
                     const userData = doc.data();
+                    
+                    // Update last login
+                    db.collection('users').doc(user.uid).update({
+                        lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    // Load user data
                     if (userData.addresses && userData.addresses.length > 0) {
                         userAddresses = userData.addresses;
                         displaySavedAddresses(userData.addresses);
+                    }
+                    
+                    if (userData.phone) {
+                        userPhone = userData.phone;
                     }
                 }
             })
@@ -143,11 +164,12 @@ auth.onAuthStateChanged(user => {
     } else {
         currentUser = null;
         userAddresses = [];
+        userPhone = null;
         updateUIForSignedOut();
     }
 });
 
-// UI Update Functions
+// Enhanced UI Update Functions
 function updateUIForUser(user) {
     // Hide auth buttons, show user menu
     const authButtons = document.querySelectorAll('#google-sign-in, #mobile-google-sign-in');
@@ -161,11 +183,17 @@ function updateUIForUser(user) {
     const userNames = document.querySelectorAll('#user-name, #mobile-user-name');
     
     userAvatars.forEach(avatar => {
-        avatar.src = user.photoURL || 'https://via.placeholder.com/36x36/D5CEA3/1A1208?text=' + (user.displayName ? user.displayName.charAt(0) : 'U');
+        avatar.src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=D5CEA3&color=1A1208&size=36`;
     });
     
     userNames.forEach(name => {
         name.textContent = user.displayName || 'User';
+    });
+    
+    console.log('User signed in:', {
+        name: user.displayName,
+        email: user.email,
+        uid: user.uid
     });
 }
 
@@ -176,47 +204,77 @@ function updateUIForSignedOut() {
     
     authButtons.forEach(btn => btn.style.display = 'flex');
     userMenus.forEach(menu => menu.style.display = 'none');
+    
+    console.log('User signed out');
 }
 
-// Google Sign-In Functions
+// Enhanced Google Sign-In Functions
 function signInWithGoogle() {
-    auth.signInWithPopup(googleProvider)
-        .then((result) => {
-            showCustomAlert('Successfully signed in! Welcome to Koco Delight!', 'success');
-            // Request location permission after sign-in
-            setTimeout(() => {
-                if (navigator.geolocation) {
-                    openLocationModal();
+    console.log('Attempting Google sign-in...');
+    
+    // Clear any existing auth state
+    auth.signOut().then(() => {
+        // Attempt sign-in with popup
+        auth.signInWithPopup(googleProvider)
+            .then((result) => {
+                console.log('Sign-in successful:', result.user);
+                showCustomAlert(`Welcome ${result.user.displayName}! Successfully signed in to Koco Delight!`, 'success');
+                
+                // Request location permission after sign-in
+                setTimeout(() => {
+                    if (navigator.geolocation && !userLocation) {
+                        showCustomAlert('Please set your delivery location for a better experience', 'info');
+                        setTimeout(() => openLocationModal(), 1000);
+                    }
+                }, 2000);
+            })
+            .catch((error) => {
+                console.error('Sign-in error:', error);
+                
+                // Handle specific error cases
+                if (error.code === 'auth/unauthorized-domain') {
+                    showCustomAlert(`Please add "${window.location.host}" to Firebase Authorized domains`, 'error');
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                    showCustomAlert('Sign-in cancelled. Please try again.', 'info');
+                } else if (error.code === 'auth/popup-blocked') {
+                    showCustomAlert('Popup blocked by browser. Please allow popups for this site.', 'error');
+                } else {
+                    showCustomAlert(`Sign-in failed: ${error.message}`, 'error');
                 }
-            }, 1000);
-        })
-        .catch((error) => {
-            console.error('Sign-in error:', error);
-            if (error.code === 'auth/unauthorized-domain') {
-                showCustomAlert(`Add this origin to Firebase Authorized domains: ${window.location.host}`, 'error');
-            } else {
-                showCustomAlert(error.message, 'error');
-            }
-        });
+            });
+    }).catch(error => {
+        console.error('Error during sign-out before sign-in:', error);
+        // Proceed with sign-in anyway
+        auth.signInWithPopup(googleProvider)
+            .then((result) => {
+                console.log('Sign-in successful:', result.user);
+                showCustomAlert(`Welcome ${result.user.displayName}!`, 'success');
+            })
+            .catch(error => {
+                console.error('Sign-in error:', error);
+                showCustomAlert(`Sign-in failed: ${error.message}`, 'error');
+            });
+    });
 }
 
 function signOut() {
     auth.signOut()
         .then(() => {
-            showCustomAlert('Successfully signed out', 'success');
+            showCustomAlert('Successfully signed out. Thank you for visiting Koco Delight!', 'success');
             // Clear user data
             boxItems = [];
             userLocation = null;
+            userPhone = null;
             userAddresses = [];
             updateBox();
         })
         .catch((error) => {
             console.error('Sign-out error:', error);
-            showCustomAlert(error.message, 'error');
+            showCustomAlert('Error signing out. Please try again.', 'error');
         });
 }
 
-// Location Functions
+// Enhanced Location Functions
 function openLocationModal() {
     const modal = document.getElementById('location-modal');
     if (modal) {
@@ -226,6 +284,12 @@ function openLocationModal() {
             const modalContent = modal.querySelector('div > div');
             if (modalContent) modalContent.classList.remove('scale-95');
         }, 10);
+        
+        // Pre-fill phone if available
+        const phoneInput = document.getElementById('location-phone');
+        if (phoneInput && userPhone) {
+            phoneInput.value = userPhone;
+        }
     }
 }
 
@@ -246,23 +310,28 @@ function getCurrentLocation() {
         return;
     }
     
-    status.textContent = 'Locating...';
+    status.textContent = 'Getting your location...';
+    status.className = 'text-sm text-center text-blue-400';
+    
     navigator.geolocation.getCurrentPosition(
         (position) => {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
             
+            status.textContent = 'Finding address...';
+            
             // Reverse geocoding to get address
             fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
                 .then(response => response.json())
                 .then(data => {
-                    const address = `${data.city}, ${data.principalSubdivision}, ${data.countryName}`;
+                    const address = `${data.locality || data.city || 'Unknown City'}, ${data.principalSubdivision || 'Unknown State'}, ${data.countryName || 'Unknown Country'}`;
                     userLocation = address;
                     
                     const manualAddress = document.getElementById('manual-address');
                     if (manualAddress) manualAddress.value = address;
                     
-                    status.textContent = 'Location found!';
+                    status.textContent = 'Location found successfully!';
+                    status.className = 'text-sm text-center text-green-400';
                     
                     // Save address to user profile if signed in
                     if (currentUser) {
@@ -270,30 +339,34 @@ function getCurrentLocation() {
                     }
                 })
                 .catch(error => {
-                    status.textContent = 'Unable to get address details';
-                    console.error(error);
+                    status.textContent = 'Unable to get address details. Please enter manually.';
+                    status.className = 'text-sm text-center text-yellow-400';
+                    console.error('Geocoding error:', error);
                 });
         },
         (error) => {
+            let errorMessage = '';
             switch(error.code) {
                 case error.PERMISSION_DENIED:
-                    status.textContent = 'User denied the request for Geolocation.';
+                    errorMessage = 'Location access denied. Please enter address manually.';
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    status.textContent = 'Location information is unavailable.';
+                    errorMessage = 'Location information is unavailable.';
                     break;
                 case error.TIMEOUT:
-                    status.textContent = 'The request to get user location timed out.';
+                    errorMessage = 'Location request timed out.';
                     break;
-                case error.UNKNOWN_ERROR:
-                    status.textContent = 'An unknown error occurred.';
+                default:
+                    errorMessage = 'An unknown error occurred.';
                     break;
             }
+            status.textContent = errorMessage;
+            status.className = 'text-sm text-center text-red-400';
         }
     );
 }
 
-function saveAddressToProfile(address) {
+function saveAddressToProfile(address, phone = null) {
     if (!currentUser) return;
     
     // Get current user data
@@ -303,24 +376,35 @@ function saveAddressToProfile(address) {
                 const userData = doc.data();
                 const addresses = userData.addresses || [];
                 
+                let updateData = {};
+                
                 // Add new address if not already exists
                 if (!addresses.includes(address)) {
                     addresses.push(address);
                     userAddresses = addresses;
-                    
-                    // Update user document
-                    return db.collection('users').doc(currentUser.uid).update({
-                        addresses: addresses
-                    });
+                    updateData.addresses = addresses;
+                }
+                
+                // Save phone number if provided
+                if (phone && phone.trim()) {
+                    userPhone = phone.trim();
+                    updateData.phone = userPhone;
+                }
+                
+                // Update user document if there's data to update
+                if (Object.keys(updateData).length > 0) {
+                    updateData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+                    return db.collection('users').doc(currentUser.uid).update(updateData);
                 }
             }
         })
         .then(() => {
             // Refresh saved addresses display
             displaySavedAddresses(userAddresses);
+            console.log('User profile updated successfully');
         })
         .catch(error => {
-            console.error('Error saving address:', error);
+            console.error('Error saving to user profile:', error);
         });
 }
 
@@ -331,9 +415,15 @@ function displaySavedAddresses(addresses) {
     container.innerHTML = '';
     
     if (addresses && addresses.length > 0) {
+        // Add a label
+        const label = document.createElement('div');
+        label.className = 'text-gold text-sm font-medium mb-2';
+        label.textContent = 'Saved Addresses:';
+        container.appendChild(label);
+        
         addresses.forEach((address, index) => {
             const pill = document.createElement('div');
-            pill.className = 'bg-bronze/20 border border-bronze/30 rounded-full px-3 py-2 text-sm text-primary-light cursor-pointer hover:bg-bronze/30 transition-colors duration-300 saved-location-pill';
+            pill.className = 'bg-bronze/20 border border-bronze/30 rounded-full px-3 py-2 text-sm text-primary-light cursor-pointer hover:bg-bronze/30 transition-colors duration-300 saved-location-pill mb-2';
             pill.innerHTML = `<i class="fas fa-map-marker-alt mr-2 text-bronze"></i> ${address}`;
             pill.addEventListener('click', () => {
                 // Remove active class from all pills
@@ -355,7 +445,7 @@ function displaySavedAddresses(addresses) {
     }
 }
 
-// 3D Scene Initialization
+// 3D Scene Initialization (unchanged)
 function initHero3D() {
     const canvas = document.getElementById('hero-canvas');
     if (!canvas) return;
@@ -838,7 +928,7 @@ function updateBox() {
     });
 }
 
-// Full Order System Implementation
+// Enhanced Order System Implementation
 function initOrderSystem() {
     const proceedBtn = document.getElementById('proceed-to-order-btn');
     const orderModal = document.getElementById('order-modal');
@@ -846,8 +936,7 @@ function initOrderSystem() {
     const orderForm = document.getElementById('order-form');
     const orderStatusEl = document.getElementById('order-status');
     const confirmBtn = document.getElementById('confirm-order-btn');
-    const orderSummary = document.getElementById('order-summary');
-    const modalTotalPrice = document.getElementById('modal-total-price');
+    const changeAddressBtn = document.getElementById('change-address-btn');
     
     if (proceedBtn) {
         proceedBtn.addEventListener('click', () => {
@@ -858,20 +947,21 @@ function initOrderSystem() {
             
             // Check if user is authenticated
             if (!currentUser) {
-                showCustomAlert('Please sign in to place an order', 'error');
-                signInWithGoogle();
+                showCustomAlert('Please sign in with Google to place an order', 'error');
+                setTimeout(() => signInWithGoogle(), 1000);
                 return;
             }
             
-            // Open location modal first if no location is set
-            if (!userLocation) {
-                showCustomAlert('Please set your delivery address first', 'info');
-                openLocationModal();
-                return;
-            }
-            
-            // Show order modal with populated data
+            // Show order modal
             showOrderModal();
+        });
+    }
+    
+    // Change address button
+    if (changeAddressBtn) {
+        changeAddressBtn.addEventListener('click', () => {
+            closeOrderModal();
+            setTimeout(() => openLocationModal(), 300);
         });
     }
     
@@ -892,20 +982,28 @@ function initOrderSystem() {
 function showOrderModal() {
     const modal = document.getElementById('order-modal');
     const orderSummary = document.getElementById('order-summary');
+    const modalSubtotal = document.getElementById('modal-subtotal');
+    const modalDeliveryFee = document.getElementById('modal-delivery-fee');
+    const modalTax = document.getElementById('modal-tax');
     const modalTotalPrice = document.getElementById('modal-total-price');
     const customerName = document.getElementById('customer-name');
     const customerEmail = document.getElementById('customer-email');
+    const customerPhone = document.getElementById('customer-phone');
     const customerAddress = document.getElementById('customer-address');
     
     if (!modal) return;
     
+    // Calculate pricing
+    const subtotal = boxItems.reduce((sum, item) => sum + item.price, 0);
+    const deliveryFee = subtotal >= 25 ? 0 : 3.99;
+    const tax = subtotal * 0.08; // 8% tax
+    const total = subtotal + deliveryFee + tax;
+    
     // Populate order summary
-    if (orderSummary && modalTotalPrice) {
+    if (orderSummary) {
         orderSummary.innerHTML = '';
-        let total = 0;
         
         boxItems.forEach(item => {
-            total += item.price;
             const itemEl = document.createElement('div');
             itemEl.className = 'flex justify-between items-center py-2 border-b border-bronze/20';
             itemEl.innerHTML = `
@@ -917,13 +1015,18 @@ function showOrderModal() {
             `;
             orderSummary.appendChild(itemEl);
         });
-        
-        modalTotalPrice.textContent = `${total.toFixed(2)}`;
     }
+    
+    // Update pricing display
+    if (modalSubtotal) modalSubtotal.textContent = subtotal.toFixed(2);
+    if (modalDeliveryFee) modalDeliveryFee.textContent = deliveryFee.toFixed(2);
+    if (modalTax) modalTax.textContent = tax.toFixed(2);
+    if (modalTotalPrice) modalTotalPrice.textContent = total.toFixed(2);
     
     // Pre-fill customer info
     if (customerName && currentUser) customerName.value = currentUser.displayName || '';
     if (customerEmail && currentUser) customerEmail.value = currentUser.email || '';
+    if (customerPhone) customerPhone.value = userPhone || '';
     if (customerAddress) customerAddress.value = userLocation || '';
     
     // Show modal with animation
@@ -948,19 +1051,30 @@ function closeOrderModal() {
 async function processOrder() {
     const confirmBtn = document.getElementById('confirm-order-btn');
     const orderStatusEl = document.getElementById('order-status');
-    const orderForm = document.getElementById('order-form');
+    const customerPhone = document.getElementById('customer-phone');
+    const customerAddress = document.getElementById('customer-address');
+    const specialInstructions = document.getElementById('special-instructions');
     
     if (!currentUser) {
         showCustomAlert('Please sign in to place an order', 'error');
         closeOrderModal();
-        signInWithGoogle();
+        setTimeout(() => signInWithGoogle(), 1000);
         return;
     }
     
-    if (!userLocation) {
-        showCustomAlert('Please set a delivery location', 'error');
-        closeOrderModal();
-        openLocationModal();
+    // Validate required fields
+    const phone = customerPhone?.value?.trim();
+    const address = customerAddress?.value?.trim();
+    
+    if (!phone) {
+        showCustomAlert('Phone number is required for delivery updates', 'error');
+        customerPhone?.focus();
+        return;
+    }
+    
+    if (!address) {
+        showCustomAlert('Delivery address is required', 'error');
+        customerAddress?.focus();
         return;
     }
     
@@ -970,16 +1084,20 @@ async function processOrder() {
         return;
     }
     
-    const specialInstructions = orderForm.querySelector('textarea')?.value || '';
-    
     // Show loading state
     if (confirmBtn) {
         confirmBtn.disabled = true;
-        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Placing Order...';
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing Order...';
     }
     
     if (orderStatusEl) {
-        orderStatusEl.textContent = 'Processing your order...';
+        orderStatusEl.innerHTML = `
+            <div class="text-center">
+                <i class="fas fa-spinner fa-spin text-blue-400 text-2xl mb-2"></i>
+                <p class="text-blue-400 font-bold">Processing your order...</p>
+                <p class="text-bronze text-sm">Please don't close this window</p>
+            </div>
+        `;
         orderStatusEl.className = 'text-center font-semibold text-blue-400';
     }
     
@@ -989,33 +1107,36 @@ async function processOrder() {
         
         // Calculate totals
         const subtotal = boxItems.reduce((sum, item) => sum + item.price, 0);
-        const deliveryFee = subtotal > 25 ? 0 : 3.99; // Free delivery over $25
-        const tax = subtotal * 0.08; // 8% tax
+        const deliveryFee = subtotal >= 25 ? 0 : 3.99;
+        const tax = subtotal * 0.08;
         const total = subtotal + deliveryFee + tax;
         
-        // Create order data
+        // Create enhanced order data
         const orderData = {
             orderId: orderId,
             customerId: currentUser.uid,
             customerName: currentUser.displayName || 'Customer',
             customerEmail: currentUser.email,
-            customerPhone: '', // Could add phone field later
-            deliveryAddress: userLocation,
+            customerPhone: phone,
+            deliveryAddress: address,
             items: boxItems.map(item => ({
                 id: item.id,
                 name: item.name,
                 emoji: item.emoji,
                 price: item.price,
-                flavor: item.flavor
+                flavor: item.flavor,
+                description: item.description
             })),
             itemCount: boxItems.length,
             subtotal: parseFloat(subtotal.toFixed(2)),
             deliveryFee: parseFloat(deliveryFee.toFixed(2)),
             tax: parseFloat(tax.toFixed(2)),
             totalPrice: parseFloat(total.toFixed(2)),
-            specialInstructions: specialInstructions,
+            specialInstructions: specialInstructions?.value?.trim() || '',
             status: 'pending',
+            paymentStatus: 'pending',
             estimatedDelivery: calculateDeliveryTime(),
+            orderSource: 'web',
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
@@ -1023,13 +1144,17 @@ async function processOrder() {
         // Save order to Firestore
         await db.collection('orders').doc(orderId).set(orderData);
         
-        // Update user's order history
+        // Update user's profile with phone and address
+        await saveAddressToProfile(address, phone);
+        
+        // Update user's order statistics
         if (currentUser) {
             const userRef = db.collection('users').doc(currentUser.uid);
             await userRef.update({
                 lastOrderId: orderId,
                 totalOrders: firebase.firestore.FieldValue.increment(1),
                 totalSpent: firebase.firestore.FieldValue.increment(total),
+                lastOrderAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
@@ -1038,41 +1163,39 @@ async function processOrder() {
         if (orderStatusEl) {
             orderStatusEl.innerHTML = `
                 <div class="text-center">
-                    <i class="fas fa-check-circle text-green-400 text-3xl mb-2"></i>
-                    <p class="text-green-400 font-bold text-lg">Order Placed Successfully!</p>
-                    <p class="text-primary-light text-sm mt-2">Order ID: ${orderId}</p>
-                    <p class="text-bronze text-sm">Estimated delivery: ${calculateDeliveryTime()}</p>
+                    <i class="fas fa-check-circle text-green-400 text-4xl mb-3"></i>
+                    <p class="text-green-400 font-bold text-xl mb-2">Order Placed Successfully!</p>
+                    <p class="text-primary-light text-lg mb-2">Order ID: <span class="text-gold font-mono">${orderId}</span></p>
+                    <p class="text-bronze mb-2">Estimated delivery: <span class="text-gold">${calculateDeliveryTime()}</span></p>
+                    <p class="text-bronze text-sm">You'll receive updates via SMS at ${phone}</p>
                 </div>
             `;
             orderStatusEl.className = 'text-center font-semibold text-green-400';
         }
         
-        // Send confirmation email (simulated)
+        // Send confirmation (simulated)
         await sendOrderConfirmation(orderData);
         
         // Clear the box
         boxItems = [];
         updateBox();
         
-        // Reset form
-        if (orderForm) orderForm.reset();
-        
         // Close modal after delay and show success
         setTimeout(() => {
             closeOrderModal();
-            showCustomAlert(`Order placed successfully! Order ID: ${orderId}. You'll receive a confirmation email shortly.`, 'success');
+            showCustomAlert(`🎉 Order placed successfully! Order ID: ${orderId}. Thank you for choosing Koco Delight!`, 'success');
             
             // Reset button state
             if (confirmBtn) {
                 confirmBtn.disabled = false;
-                confirmBtn.innerHTML = 'Confirm Order';
+                confirmBtn.innerHTML = '<i class="fas fa-credit-card mr-2"></i>Confirm Order';
             }
             
             if (orderStatusEl) {
-                orderStatusEl.textContent = '';
+                orderStatusEl.innerHTML = '';
                 orderStatusEl.className = 'text-center font-semibold';
             }
-        }, 3000);
+        }, 4000);
         
     } catch (error) {
         console.error('Order submission error:', error);
@@ -1080,9 +1203,10 @@ async function processOrder() {
         if (orderStatusEl) {
             orderStatusEl.innerHTML = `
                 <div class="text-center">
-                    <i class="fas fa-exclamation-circle text-red-400 text-2xl mb-2"></i>
-                    <p class="text-red-400 font-bold">Failed to place order</p>
-                    <p class="text-bronze text-sm">Please try again or contact support</p>
+                    <i class="fas fa-exclamation-triangle text-red-400 text-3xl mb-2"></i>
+                    <p class="text-red-400 font-bold text-lg">Order Failed</p>
+                    <p class="text-bronze text-sm mb-2">Please check your connection and try again</p>
+                    <p class="text-bronze text-xs">Error: ${error.message}</p>
                 </div>
             `;
             orderStatusEl.className = 'text-center font-semibold text-red-400';
@@ -1090,10 +1214,10 @@ async function processOrder() {
         
         if (confirmBtn) {
             confirmBtn.disabled = false;
-            confirmBtn.innerHTML = 'Confirm Order';
+            confirmBtn.innerHTML = '<i class="fas fa-credit-card mr-2"></i>Confirm Order';
         }
         
-        showCustomAlert('Failed to place order. Please try again.', 'error');
+        showCustomAlert('Failed to place order. Please check your connection and try again.', 'error');
     }
 }
 
@@ -1111,25 +1235,15 @@ function calculateDeliveryTime() {
 }
 
 async function sendOrderConfirmation(orderData) {
-    // In a real app, this would trigger an email service
-    // For now, we'll simulate the email sending
-    console.log('Order confirmation sent:', orderData);
+    // In a real app, this would trigger an email/SMS service
+    console.log('Order confirmation sent:', {
+        orderId: orderData.orderId,
+        customerEmail: orderData.customerEmail,
+        customerPhone: orderData.customerPhone,
+        totalPrice: orderData.totalPrice
+    });
     
-    // You could integrate with EmailJS, SendGrid, or your backend email service here
-    // Example with EmailJS (if you want to implement real emails):
-    /*
-    try {
-        await emailjs.send('service_id', 'template_id', {
-            to_email: orderData.customerEmail,
-            customer_name: orderData.customerName,
-            order_id: orderData.orderId,
-            total_price: orderData.totalPrice,
-            delivery_time: orderData.estimatedDelivery
-        });
-    } catch (error) {
-        console.error('Email sending failed:', error);
-    }
-    */
+    // You could integrate with EmailJS, Twilio, SendGrid, or your backend service here
 }
 
 // Utility Functions
@@ -1139,51 +1253,65 @@ function showCustomAlert(message, type = 'info') {
     if (existingAlert) existingAlert.remove();
     
     const alert = document.createElement('div');
-    alert.className = `custom-alert fixed top-6 right-6 z-[10000] px-6 py-4 rounded-xl shadow-lg border transform transition-all duration-300`;
+    alert.className = `custom-alert fixed top-6 right-6 z-[10000] px-6 py-4 rounded-xl shadow-lg border transform transition-all duration-300 max-w-sm`;
     
     if (type === 'success') {
-        alert.className += ' bg-green-900/90 border-green-700 text-green-100';
+        alert.className += ' bg-green-900/95 border-green-700 text-green-100';
     } else if (type === 'error') {
-        alert.className += ' bg-red-900/90 border-red-700 text-red-100';
+        alert.className += ' bg-red-900/95 border-red-700 text-red-100';
     } else {
-        alert.className += ' bg-primary-medium/90 border-gold/30 text-gold';
+        alert.className += ' bg-primary-medium/95 border-gold/30 text-gold';
     }
     
     alert.innerHTML = `
-        <div class="flex items-center">
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} mr-3"></i>
-            <p>${message}</p>
+        <div class="flex items-start">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} mr-3 mt-0.5 text-lg"></i>
+            <div class="flex-1">
+                <p class="text-sm leading-relaxed">${message}</p>
+            </div>
+            <button class="ml-2 text-current opacity-60 hover:opacity-100 close-alert">
+                <i class="fas fa-times text-sm"></i>
+            </button>
         </div>
     `;
     
     document.body.appendChild(alert);
     
+    // Close button functionality
+    alert.querySelector('.close-alert').addEventListener('click', () => {
+        alert.remove();
+    });
+    
     // Animate in
     if (typeof gsap !== 'undefined') {
         gsap.fromTo(alert, { x: 100, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5 });
         
-        // Auto remove after 5 seconds
+        // Auto remove after 6 seconds
         setTimeout(() => {
-            gsap.to(alert, {
-                x: 100,
-                opacity: 0,
-                duration: 0.5,
-                onComplete: () => alert.remove()
-            });
-        }, 5000);
+            if (document.body.contains(alert)) {
+                gsap.to(alert, {
+                    x: 100,
+                    opacity: 0,
+                    duration: 0.5,
+                    onComplete: () => alert.remove()
+                });
+            }
+        }, 6000);
     } else {
         alert.style.opacity = '1';
         alert.style.transform = 'translateX(0)';
         
         setTimeout(() => {
-            alert.remove();
-        }, 5000);
+            if (document.body.contains(alert)) {
+                alert.remove();
+            }
+        }, 6000);
     }
 }
 
 // Page Initialization
 function initPage() {
-    console.log('Initializing page...');
+    console.log('Initializing Koco Delight website...');
     
     // Initialize navigation effects first
     initNavigationEffects();
@@ -1216,12 +1344,12 @@ function initPage() {
     // Initialize with no user
     updateUIForSignedOut();
     
-    console.log('Page initialization complete');
+    console.log('✅ Koco Delight initialization complete');
 }
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing...');
+    console.log('DOM loaded, initializing Koco Delight...');
     
     // Hide loader after a short delay
     setTimeout(() => {
@@ -1253,12 +1381,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Auth button event listeners
     document.addEventListener('click', (e) => {
-        if (e.target.matches('#google-sign-in') || e.target.matches('#mobile-google-sign-in')) {
+        if (e.target.matches('#google-sign-in') || e.target.matches('#mobile-google-sign-in') || 
+            e.target.closest('#google-sign-in') || e.target.closest('#mobile-google-sign-in')) {
             e.preventDefault();
             signInWithGoogle();
         }
         
-        if (e.target.matches('#logout-btn') || e.target.matches('#mobile-logout-btn')) {
+        if (e.target.matches('#logout-btn') || e.target.matches('#mobile-logout-btn') ||
+            e.target.closest('#logout-btn') || e.target.closest('#mobile-logout-btn')) {
             e.preventDefault();
             signOut();
         }
@@ -1275,16 +1405,33 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (confirmLocationBtn) {
         confirmLocationBtn.addEventListener('click', () => {
-            const manualAddress = document.getElementById('manual-address')?.value;
-            if (manualAddress && manualAddress.trim()) {
-                userLocation = manualAddress.trim();
-                // Save address to user profile if signed in
-                if (currentUser) {
-                    saveAddressToProfile(userLocation);
+            const manualAddress = document.getElementById('manual-address')?.value?.trim();
+            const locationPhone = document.getElementById('location-phone')?.value?.trim();
+            
+            if (manualAddress) {
+                userLocation = manualAddress;
+                
+                // Save phone number if provided
+                if (locationPhone) {
+                    userPhone = locationPhone;
                 }
+                
+                // Save to user profile if signed in
+                if (currentUser) {
+                    saveAddressToProfile(userLocation, userPhone);
+                }
+                
                 closeLocationModal();
                 showCustomAlert('Delivery location set successfully!', 'success');
             } else if (userLocation) {
+                // Save phone number if provided
+                if (locationPhone) {
+                    userPhone = locationPhone;
+                    if (currentUser) {
+                        saveAddressToProfile(userLocation, userPhone);
+                    }
+                }
+                
                 closeLocationModal();
                 showCustomAlert('Delivery location confirmed!', 'success');
             } else {
