@@ -86,26 +86,15 @@
         .status-delivered { color: #90EE90; background: rgba(144, 238, 144, 0.1); }
         .status-cancelled { color: #FF6B6B; background: rgba(255, 107, 107, 0.1); }
 
-        .order-card {
-            transition: all 0.3s ease;
-            border-left: 4px solid transparent;
-        }
-
-        .order-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            border-left-color: var(--accent-gold);
-        }
-
         .loading {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem;
+            padding: 3rem;
         }
 
         .spinner {
-            animate: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
             width: 2rem;
             height: 2rem;
             border: 2px solid var(--accent-bronze);
@@ -136,6 +125,8 @@
             overflow-x: auto;
             border-radius: 1rem;
             border: 1px solid rgba(213, 206, 163, 0.15);
+            max-height: 600px;
+            overflow-y: auto;
         }
 
         table {
@@ -150,7 +141,7 @@
         }
 
         th {
-            background: rgba(26, 18, 8, 0.8);
+            background: rgba(26, 18, 8, 0.9);
             color: var(--accent-gold);
             font-weight: 600;
             position: sticky;
@@ -180,17 +171,23 @@
         .filter-badge {
             background: rgba(162, 123, 92, 0.2);
             color: var(--accent-bronze);
-            padding: 0.25rem 0.75rem;
+            padding: 0.5rem 1rem;
             border-radius: 9999px;
-            font-size: 0.75rem;
+            font-size: 0.875rem;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .filter-badge:hover {
+            background: rgba(162, 123, 92, 0.3);
         }
 
         .filter-badge.active {
             background: var(--accent-gold);
             color: var(--primary-dark);
+            border-color: var(--accent-gold);
         }
 
         .sidebar {
@@ -213,10 +210,22 @@
         .main-content {
             margin-left: 16rem;
             transition: margin-left 0.3s ease;
+            min-height: 100vh;
         }
 
         .main-content.full-width {
             margin-left: 0;
+        }
+
+        .nav-item.active {
+            background: rgba(252, 211, 77, 0.1);
+            color: #FCD34D;
+            border-radius: 0.5rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
         }
 
         @media (max-width: 768px) {
@@ -300,7 +309,7 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="relative">
-                        <input type="text" id="search-bar" placeholder="Search orders..." class="search-bar pl-10">
+                        <input type="text" id="search-bar" placeholder="Search orders..." class="search-bar pl-10" style="width: 300px;">
                         <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     </div>
                     <button onclick="refreshData()" class="btn-secondary">
@@ -335,11 +344,15 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="glass-effect rounded-xl p-6">
                     <h3 class="text-xl font-semibold text-yellow-400 mb-4">Revenue Chart</h3>
-                    <canvas id="revenueChart" height="300"></canvas>
+                    <div class="chart-container">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
                 </div>
                 <div class="glass-effect rounded-xl p-6">
                     <h3 class="text-xl font-semibold text-yellow-400 mb-4">Order Status Distribution</h3>
-                    <canvas id="statusChart" height="300"></canvas>
+                    <div class="chart-container">
+                        <canvas id="statusChart"></canvas>
+                    </div>
                 </div>
             </div>
         </section>
@@ -402,11 +415,16 @@
         <section id="customers-section" class="p-6 hidden">
             <div class="glass-effect rounded-xl p-6">
                 <h3 class="text-xl font-semibold text-yellow-400 mb-6">Customer List</h3>
-                <div id="customers-container">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <span class="ml-3 text-gray-400">Loading customers...</span>
-                    </div>
+                <div id="customers-loading" class="loading">
+                    <div class="spinner"></div>
+                    <span class="ml-3 text-gray-400">Loading customers...</span>
+                </div>
+                <div id="customers-container" class="hidden">
+                    <!-- Customers will be populated here -->
+                </div>
+                <div id="empty-customers" class="text-center py-8 hidden">
+                    <div class="text-4xl mb-4">👥</div>
+                    <p class="text-gray-400">No customers found</p>
                 </div>
             </div>
         </section>
@@ -416,11 +434,15 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="glass-effect rounded-xl p-6">
                     <h3 class="text-xl font-semibold text-yellow-400 mb-4">Popular Items</h3>
-                    <canvas id="popularItemsChart" height="300"></canvas>
+                    <div class="chart-container">
+                        <canvas id="popularItemsChart"></canvas>
+                    </div>
                 </div>
                 <div class="glass-effect rounded-xl p-6">
                     <h3 class="text-xl font-semibold text-yellow-400 mb-4">Monthly Trends</h3>
-                    <canvas id="trendsChart" height="300"></canvas>
+                    <div class="chart-container">
+                        <canvas id="trendsChart"></canvas>
+                    </div>
                 </div>
             </div>
         </section>
@@ -429,7 +451,7 @@
     <!-- Order Details Modal -->
     <div id="order-modal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm">
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="glass-effect rounded-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="glass-effect rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-2xl font-bold text-yellow-400">Order Details</h3>
                     <button onclick="closeOrderModal()" class="text-gray-400 hover:text-yellow-400 transition-colors">
