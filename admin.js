@@ -26,7 +26,7 @@ let loadingTimeouts = new Set();
 // Admin User IDs (Replace with your admin email)
 const ADMIN_EMAILS = [
     'moabrarakhunji@gmail.com', // Replace with your admin email
-    'admin@kocodelight.com'
+    'kamilganiji@gmail.com'
 ];
 
 // Authentication State Management
