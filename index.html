@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koco Delight - Artisan Chocolate Experiences</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- GSAP Animation Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    
+    <!-- Three.js 3D Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="antialiased bg-pattern">
+    <!-- Custom Cursor Elements -->
+    <div id="cursor-dot" class="custom-cursor-dot"></div>
+    <div id="cursor-circle" class="custom-cursor-circle"></div>
+    
+    <!-- Loading Animation -->
+    <div id="loader" class="loader">
+        <div class="loader-animation">
+            <div class="chocolate-spinner"></div>
+            <div class="loader-rings">
+                <div class="ring ring-1"></div>
+                <div class="ring ring-2"></div>
+                <div class="ring ring-3"></div>
+            </div>
+        </div>
+        <p class="loader-text">Crafting Your Experience...</p>
+    </div>
+    
+    <!-- Floating WhatsApp Icon -->
+    <a href="https://wa.me/yourphonenumber" target="_blank" class="fixed bottom-6 right-6 z-50 p-3 bg-green-600 rounded-full shadow-lg hover:scale-110 transition-transform duration-300">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="white" width="24" height="24" viewBox="0 0 24 24">
+            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+        </svg>
+    </a>
+    
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out" id="navbar">
+        <div class="nav-container max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-gold to-bronze rounded-lg flex items-center justify-center shadow-lg">
+                    <i class="fas fa-heart text-primary-dark text-lg"></i>
+                </div>
+                <span class="text-2xl font-serif font-bold text-gold">Koco Delight</span>
+            </div>
+            
+            <!-- Desktop Navigation -->
+            <div class="hidden lg:flex items-center space-x-8">
+                <a href="#home" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">Home</a>
+                <a href="#chocolates" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">Our Chocolates</a>
+                <a href="#about" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">About Us</a>
+                <a href="#customize" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">Customize</a>
+                <a href="#contact" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">Contact</a>
+            </div>
+            
+            <!-- Auth Section -->
+            <div class="hidden lg:flex items-center space-x-4">
+                <!-- Sign In Button -->
+                <button id="google-sign-in" class="sign-in-btn bg-gradient-to-r from-blue-500 to-green-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:scale-105 transition-transform duration-300">
+                    <i class="fab fa-google"></i>
+                    <span>Sign in with Google</span>
+                </button>
+                
+                <!-- User Menu (Hidden by default) -->
+                <div id="user-menu" class="user-menu hidden items-center space-x-3">
+                    <img id="user-avatar" class="w-8 h-8 rounded-full border-2 border-gold" src="" alt="User">
+                    <span id="user-name" class="text-gold font-medium"></span>
+                    <button id="logout-btn" class="text-bronze hover:text-gold transition-colors duration-300">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile Menu Button -->
+            <button class="lg:hidden text-gold focus:outline-none" id="mobile-menu-btn">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+        </div>
+        
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="lg:hidden hidden bg-primary-dark/95 backdrop-blur-lg border-t border-gold/20">
+            <div class="px-6 py-4 space-y-4">
+                <a href="#home" class="block text-primary-light hover:text-gold transition-colors duration-300">Home</a>
+                <a href="#chocolates" class="block text-primary-light hover:text-gold transition-colors duration-300">Our Chocolates</a>
+                <a href="#about" class="block text-primary-light hover:text-gold transition-colors duration-300">About Us</a>
+                <a href="#customize" class="block text-primary-light hover:text-gold transition-colors duration-300">Customize</a>
+                <a href="#contact" class="block text-primary-light hover:text-gold transition-colors duration-300">Contact</a>
+                
+                <!-- Mobile Auth -->
+                <div class="pt-4 border-t border-gold/20">
+                    <button id="mobile-google-sign-in" class="w-full bg-gradient-to-r from-blue-500 to-green-500 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 hover:scale-105 transition-transform duration-300">
+                        <i class="fab fa-google"></i>
+                        <span>Sign in with Google</span>
+                    </button>
+                    
+                    <div id="mobile-user-menu" class="hidden mt-4 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <img id="mobile-user-avatar" class="w-8 h-8 rounded-full border-2 border-gold" src="" alt="User">
+                            <span id="mobile-user-name" class="text-gold font-medium"></span>
+                        </div>
+                        <button id="mobile-logout-btn" class="text-bronze hover:text-gold transition-colors duration-300">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section id="home" class="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
+        <!-- 3D Background Canvas -->
+        <canvas id="hero-canvas" class="absolute inset-0 w-full h-full"></canvas>
+        
+        <!-- Gradient Overlay for better text visibility -->
+        <div class="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/40"></div>
+        
+        <!-- Hero Content -->
+        <div class="hero-content relative z-10 text-center px-6 max-w-4xl">
+            <p class="hero-subtitle text-gold text-lg md:text-xl font-serif italic mb-4">Artisan Crafted</p>
+            <h1 class="hero-title text-6xl md:text-8xl lg:text-9xl font-serif font-bold text-gradient mb-6">Koco Delight</h1>
+            <p class="hero-description text-xl md:text-2xl text-primary-light/90 mb-8 max-w-2xl mx-auto leading-relaxed">Indulge in the finest handcrafted chocolates, where every bite tells a story of passion, tradition, and pure bliss.</p>
+            
+            <div class="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="#chocolates" class="btn-gold px-8 py-4 rounded-full font-semibold text-lg hover:scale-105 transform transition-all duration-300 shadow-lg">Explore Our Collection</a>
+                <a href="#customize" class="btn-copper px-8 py-4 rounded-full font-semibold text-lg hover:scale-105 transform transition-all duration-300 shadow-lg">Create Custom Box</a>
+            </div>
+        </div>
+        
+        <!-- Scroll Indicator -->
+        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gold/70 animate-bounce z-10">
+            <a href="#chocolates" class="block">
+                <i class="fas fa-chevron-down text-2xl"></i>
+            </a>
+        </div>
+    </section>
+    
+    <!-- Our Chocolates Section -->
+    <section id="chocolates" class="py-20 bg-gradient-to-b from-primary-medium to-primary-dark">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-serif font-bold text-gold mb-6 section-title">Our Artisan Collection</h2>
+                <p class="text-xl text-bronze max-w-3xl mx-auto leading-relaxed section-subtitle">Each chocolate is a masterpiece, carefully crafted using the finest ingredients and traditional techniques passed down through generations.</p>
+            </div>
+            
+            <!-- Small Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-6xl mx-auto" id="chocolates-grid">
+                <!-- Cards will be populated by JavaScript -->
+            </div>
+        </div>
+    </section>
+    
+    <!-- About Section -->
+    <section id="about" class="py-20 bg-primary-dark">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div class="order-2 lg:order-1">
+                    <h2 class="text-5xl md:text-6xl font-serif font-bold text-gold mb-6 section-title">Our Story</h2>
+                    <p class="text-lg text-primary-light/90 mb-6 leading-relaxed section-subtitle">
+                        Born from a passion for perfection, Koco Delight has been crafting extraordinary chocolates for over two decades. Our master chocolatiers combine traditional European techniques with innovative flavors to create an unparalleled tasting experience.
+                    </p>
+                    <p class="text-lg text-primary-light/90 mb-8 leading-relaxed section-subtitle">
+                        Every piece is handcrafted in small batches using only the finest Belgian cocoa, fresh ingredients, and a touch of love that makes each bite a moment of pure bliss.
+                    </p>
+                    <a href="#customize" class="btn-gold px-8 py-4 rounded-full font-semibold text-lg hover:scale-105 transform transition-all duration-300 shadow-lg">Start Your Journey</a>
+                </div>
+                <div class="order-1 lg:order-2">
+                    <div class="relative">
+                        <img src="https://images.unsplash.com/photo-1549007994-cb92caebd54b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Chocolate Making" class="rounded-2xl shadow-2xl w-full h-96 object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-primary-dark/50 to-transparent rounded-2xl"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Customize Section -->
+    <section id="customize" class="py-20 bg-gradient-to-b from-primary-dark to-primary-medium">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-serif font-bold text-gold mb-6 section-title">Create Your Perfect Box</h2>
+                <p class="text-xl text-bronze max-w-3xl mx-auto leading-relaxed section-subtitle">Design a personalized chocolate collection that reflects your unique taste. Choose from our premium selection and create the perfect gift or personal indulgence.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <!-- Chocolate Options -->
+                <div>
+                    <h3 class="text-2xl font-serif font-semibold text-gold mb-6">Available Chocolates</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="chocolate-options">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Custom Box -->
+                <div>
+                    <h3 class="text-2xl font-serif font-semibold text-gold mb-6">Your Custom Box (Max 12 pieces)</h3>
+                    <div class="custom-box glass-effect rounded-2xl p-6 min-h-[300px] grid grid-cols-4 gap-3" id="custom-box">
+                        <div class="col-span-4 flex flex-col items-center justify-center text-bronze/50 h-64">
+                            <i class="fas fa-arrow-up text-2xl mb-2"></i>
+                            <p class="text-sm text-center">Drag chocolates here or click "Add to Box"</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mt-6">
+                        <div class="text-2xl font-bold text-gold">Total: $<span id="total-price">0.00</span></div>
+                        <div class="space-x-4">
+                            <button id="clear-box" class="btn-copper px-6 py-3 rounded-lg font-semibold hover:scale-105 transform transition-all duration-300">Clear Box</button>
+                            <button id="proceed-to-order-btn" class="btn-gold px-6 py-3 rounded-lg font-semibold hover:scale-105 transform transition-all duration-300">Place Order</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Testimonials Section -->
+    <section class="py-20 bg-primary-dark">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-serif font-bold text-gold mb-6 section-title">What Our Customers Say</h2>
+                <p class="text-xl text-bronze max-w-3xl mx-auto leading-relaxed section-subtitle">Discover why chocolate lovers around the world choose Koco Delight for their most special moments.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="glass-effect p-8 rounded-2xl border border-gold/10 card-item">
+                    <div class="flex items-center mb-4">
+                        <div class="flex text-gold text-xl">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                    </div>
+                    <p class="text-primary-light/90 mb-6 italic leading-relaxed">"The most exquisite chocolates I've ever tasted. Each piece is a work of art that melts perfectly on your tongue. Absolutely divine!"</p>
+                    <div class="flex items-center">
+                        <img src="https://images.unsplash.com/photo-1494790108755-2616b612b550?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80" alt="Sarah Johnson" class="w-12 h-12 rounded-full mr-4">
+                        <div>
+                            <h4 class="text-gold font-semibold">Sarah Johnson</h4>
+                            <p class="text-bronze text-sm">Chocolate Enthusiast</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-effect p-8 rounded-2xl border border-gold/10 card-item">
+                    <div class="flex items-center mb-4">
+                        <div class="flex text-gold text-xl">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                    </div>
+                    <p class="text-primary-light/90 mb-6 italic leading-relaxed">"Perfect for special occasions! The custom box feature allowed me to create the ideal gift for my anniversary. Highly recommended!"</p>
+                    <div class="flex items-center">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80" alt="Michael Chen" class="w-12 h-12 rounded-full mr-4">
+                        <div>
+                            <h4 class="text-gold font-semibold">Michael Chen</h4>
+                            <p class="text-bronze text-sm">Happy Customer</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-effect p-8 rounded-2xl border border-gold/10 card-item">
+                    <div class="flex items-center mb-4">
+                        <div class="flex text-gold text-xl">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                    </div>
+                    <p class="text-primary-light/90 mb-6 italic leading-relaxed">"Outstanding quality and incredible flavors. The attention to detail in both taste and presentation is remarkable. My new favorite chocolate brand!"</p>
+                    <div class="flex items-center">
+                        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80" alt="Emily Rodriguez" class="w-12 h-12 rounded-full mr-4">
+                        <div>
+                            <h4 class="text-gold font-semibold">Emily Rodriguez</h4>
+                            <p class="text-bronze text-sm">Food Blogger</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Contact Section -->
+    <section id="contact" class="py-20 bg-gradient-to-b from-primary-medium to-primary-dark">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-serif font-bold text-gold mb-6 section-title">Get in Touch</h2>
+                <p class="text-xl text-bronze max-w-3xl mx-auto leading-relaxed section-subtitle">Have questions about our chocolates or need help with custom orders? We'd love to hear from you.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div class="space-y-8">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-gold/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-map-marker-alt text-gold text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-gold font-semibold text-lg">Visit Our Store</h3>
+                            <p class="text-primary-light/90">123 Chocolate Avenue, Sweet City, SC 12345</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-gold/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-phone text-gold text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-gold font-semibold text-lg">Call Us</h3>
+                            <p class="text-primary-light/90">(555) 123-4567</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-gold/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-envelope text-gold text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-gold font-semibold text-lg">Email Us</h3>
+                            <p class="text-primary-light/90">hello@kocodelight.com</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-gold/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-clock text-gold text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-gold font-semibold text-lg">Hours</h3>
+                            <p class="text-primary-light/90">Mon-Sat: 9AM-8PM, Sun: 11AM-6PM</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form class="space-y-6">
+                    <div>
+                        <input type="text" placeholder="Your Name" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light placeholder-bronze/50 focus:border-gold focus:outline-none transition-colors duration-300">
+                    </div>
+                    <div>
+                        <input type="email" placeholder="Your Email" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light placeholder-bronze/50 focus:border-gold focus:outline-none transition-colors duration-300">
+                    </div>
+                    <div>
+                        <textarea rows="5" placeholder="Your Message" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light placeholder-bronze/50 focus:border-gold focus:outline-none transition-colors duration-300 resize-vertical"></textarea>
+                    </div>
+                    <button type="submit" class="w-full btn-gold py-4 rounded-lg font-semibold text-lg hover:scale-105 transform transition-all duration-300">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="bg-primary-dark/90 py-12 border-t border-gold/20">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div class="col-span-1 md:col-span-2">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-10 h-10 bg-gradient-to-br from-gold to-bronze rounded-lg flex items-center justify-center shadow-lg">
+                            <i class="fas fa-heart text-primary-dark text-lg"></i>
+                        </div>
+                        <span class="text-2xl font-serif font-bold text-gold">Koco Delight</span>
+                    </div>
+                    <p class="text-bronze mb-4 leading-relaxed">Crafting extraordinary chocolate experiences since 2001. Every piece tells a story of passion, tradition, and pure indulgence.</p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-bronze hover:text-gold transition-colors duration-300">
+                            <i class="fab fa-facebook-f text-xl"></i>
+                        </a>
+                        <a href="#" class="text-bronze hover:text-gold transition-colors duration-300">
+                            <i class="fab fa-instagram text-xl"></i>
+                        </a>
+                        <a href="#" class="text-bronze hover:text-gold transition-colors duration-300">
+                            <i class="fab fa-twitter text-xl"></i>
+                        </a>
+                        <a href="#" class="text-bronze hover:text-gold transition-colors duration-300">
+                            <i class="fab fa-youtube text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-gold font-semibold text-lg mb-4">Quick Links</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#home" class="text-bronze hover:text-gold transition-colors duration-300">Home</a></li>
+                        <li><a href="#chocolates" class="text-bronze hover:text-gold transition-colors duration-300">Our Chocolates</a></li>
+                        <li><a href="#about" class="text-bronze hover:text-gold transition-colors duration-300">About Us</a></li>
+                        <li><a href="#customize" class="text-bronze hover:text-gold transition-colors duration-300">Customize</a></li>
+                        <li><a href="#contact" class="text-bronze hover:text-gold transition-colors duration-300">Contact</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="text-gold font-semibold text-lg mb-4">Customer Care</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-bronze hover:text-gold transition-colors duration-300">FAQs</a></li>
+                        <li><a href="#" class="text-bronze hover:text-gold transition-colors duration-300">Shipping Info</a></li>
+                        <li><a href="#" class="text-bronze hover:text-gold transition-colors duration-300">Returns</a></li>
+                        <li><a href="#" class="text-bronze hover:text-gold transition-colors duration-300">Gift Cards</a></li>
+                        <li><a href="#" class="text-bronze hover:text-gold transition-colors duration-300">Wholesale</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gold/20 mt-8 pt-8 text-center">
+                <p class="text-bronze">&copy; 2024 Koco Delight. All rights reserved. Crafted with <i class="fas fa-heart text-gold"></i> and chocolate.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Modals -->
+    <!-- Location Modal -->
+    <div id="location-modal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="glass-effect rounded-2xl p-8 w-full max-w-md transform scale-95 transition-transform duration-300">
+                <h3 class="text-2xl font-serif font-bold text-gold mb-6 text-center">Set Delivery Location</h3>
+                
+                <div class="space-y-4">
+                    <button id="get-location-btn" class="w-full btn-gold py-3 rounded-lg font-semibold hover:scale-105 transform transition-all duration-300">
+                        <i class="fas fa-location-arrow mr-2"></i>
+                        Use Current Location
+                    </button>
+                    
+                    <div class="text-center text-bronze">or</div>
+                    
+                    <input type="text" id="manual-address" placeholder="Enter your address" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light placeholder-bronze/50 focus:border-gold focus:outline-none transition-colors duration-300">
+                    
+                    <div id="location-status" class="text-sm text-center text-bronze"></div>
+                    
+                    <!-- Saved Locations -->
+                    <div id="saved-locations" class="space-y-2">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4 mt-6">
+                    <button id="cancel-location" class="flex-1 btn-copper py-3 rounded-lg font-semibold hover:scale-105 transform transition-all duration-300">Cancel</button>
+                    <button id="confirm-location" class="flex-1 btn-gold py-3 rounded-lg font-semibold hover:scale-105 transform transition-all duration-300">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Order Modal -->
+    <div id="order-modal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="glass-effect rounded-2xl p-8 w-full max-w-2xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto">
+                <div id="modal-content">
+                    <h3 class="text-2xl font-serif font-bold text-gold mb-6 text-center">Confirm Your Order</h3>
+                    
+                    <form id="order-form" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-gold font-semibold mb-2">Customer Name</label>
+                                <input type="text" id="customer-name" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light placeholder-bronze/50 focus:border-gold focus:outline-none transition-colors duration-300" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-gold font-semibold mb-2">Email</label>
+                                <input type="email" id="customer-email" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light placeholder-bronze/50 focus:border-gold focus:outline-none transition-colors duration-300" readonly>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gold font-semibold mb-2">Delivery Address</label>
+                            <input type="text" id="customer-address" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light placeholder-bronze/50 focus:border-gold focus:outline-none transition-colors duration-300" readonly>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gold font-semibold mb-2">Special Instructions (Optional)</label>
+                            <textarea rows="3" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light placeholder-bronze/50 focus:border-gold focus:outline-none transition-colors duration-300 resize-vertical" placeholder="Any special delivery instructions or requests..."></textarea>
+                        </div>
+                        
+                        <div class="bg-primary-dark/50 rounded-lg p-4">
+                            <h4 class="text-gold font-semibold mb-3">Order Summary</h4>
+                            <div id="order-summary" class="space-y-2 mb-4">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                            <div class="border-t border-gold/20 pt-3">
+                                <div class="flex justify-between items-center text-lg font-semibold">
+                                    <span class="text-gold">Total:</span>
+                                    <span class="text-gold">$<span id="modal-total-price">0.00</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="order-status" class="text-center font-semibold"></div>
+                        
+                        <div class="flex space-x-4">
+                            <button type="button" id="cancel-order-btn" class="flex-1 btn-copper py-3 rounded-lg font-semibold hover:scale-105 transform transition-all duration-300">Cancel</button>
+                            <button type="submit" id="confirm-order-btn" class="flex-1 btn-gold py-3 rounded-lg font-semibold hover:scale-105 transform transition-all duration-300">Confirm Order</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
