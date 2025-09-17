@@ -23,8 +23,8 @@ let charts = {};
 
 // Admin User IDs (Add your admin email/UID here)
 const ADMIN_EMAILS = [
-    'your-admin-email@gmail.com', // Replace with your admin email
-    'admin@kocodelight.com'
+    'moabrarakhunji@gmail.com', // Replace with your admin email
+    'kamilganiji@gmail.com'
 ];
 
 // Authentication State Management
