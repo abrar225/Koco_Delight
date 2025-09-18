@@ -1,5 +1,6 @@
-// Firebase Configuration
-const firebaseConfig = {
+// Get Firebase configuration from environment variables
+const firebaseConfig = window.APP_CONFIG ? window.APP_CONFIG.FIREBASE : {
+    // Fallback for local development
     apiKey: "AIzaSyBs-7nJ3-L2IISbkB_B2PB6E_1y9ZmImUw",
     authDomain: "koco-delight.firebaseapp.com",
     projectId: "koco-delight",
@@ -8,6 +9,15 @@ const firebaseConfig = {
     appId: "1:587407788224:web:dfe3a40919aabfc2200525",
     measurementId: "G-QZRMX4WN3G"
 };
+
+// Get admin emails from environment variables
+const ADMIN_EMAILS = window.APP_CONFIG ? 
+    (window.APP_CONFIG.ADMIN_EMAILS || '').split(',').map(s => s.trim()).filter(Boolean) : 
+    [
+        'moabrarakhunji@gmail.com',
+        'kamil1ganjii@gmail.com',
+        'admin@kocodelight.com'
+    ];
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
@@ -19,85 +29,70 @@ let currentAdmin = null;
 let allOrders = [];
 let allCustomers = [];
 let currentFilter = 'all';
-let charts = {};
-let isInitialized = false;
-let loadingTimeouts = new Set();
+let currentOrderId = null;
+let isLoading = false;
 
-// Admin User IDs (Replace with your admin email)
-const ADMIN_EMAILS = [
-    'moabrarakhunji@gmail.com', // Replace with your admin email
-    'kamilganiji@gmail.com'
-];
+console.log('🚀 Koco Admin Panel Loading...');
+console.log('📧 Admin emails configured:', ADMIN_EMAILS);
 
 // Authentication State Management
 auth.onAuthStateChanged(user => {
     console.log('Auth state changed:', user ? user.email : 'No user');
     
     if (user && ADMIN_EMAILS.includes(user.email)) {
+        console.log('✅ Admin authenticated:', user.email);
         currentAdmin = user;
-        updateAdminUI(user);
-        
-        if (!isInitialized) {
-            initializeDashboard();
-            isInitialized = true;
-        }
+        showMainApp(user);
+        loadDashboardData();
     } else if (user) {
-        // User is signed in but not admin
+        console.warn('❌ User not authorized as admin:', user.email);
         showAccessDenied();
     } else {
-        // User is not signed in
-        showSignInForm();
+        console.log('📝 No user signed in, showing sign-in screen');
+        showSignInScreen();
     }
 });
 
-function updateAdminUI(user) {
-    const nameEl = document.getElementById('admin-name');
-    const emailEl = document.getElementById('admin-email');
-    const avatarEl = document.getElementById('admin-avatar');
-    
-    if (nameEl) nameEl.textContent = user.displayName || 'Admin';
-    if (emailEl) emailEl.textContent = user.email;
-    if (avatarEl) {
-        avatarEl.src = user.photoURL || 
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'Admin')}&background=FCD34D&color=1F2937&size=32`;
-    }
+// Screen Management Functions
+function showLoadingScreen() {
+    document.getElementById('loading-screen').classList.remove('hidden');
+    document.getElementById('signin-screen').classList.add('hidden');
+    document.getElementById('access-denied-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.add('hidden');
+}
+
+function showSignInScreen() {
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('signin-screen').classList.remove('hidden');
+    document.getElementById('access-denied-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.add('hidden');
 }
 
 function showAccessDenied() {
-    document.body.innerHTML = `
-        <div class="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
-            <div class="text-center p-8 glass-effect rounded-2xl max-w-md">
-                <div class="text-6xl text-red-400 mb-4">🚫</div>
-                <h2 class="text-2xl font-bold text-red-400 mb-2">Access Denied</h2>
-                <p class="text-gray-300 mb-6">You don't have admin permissions to access this dashboard.</p>
-                <button onclick="signOut()" class="btn-primary">
-                    <i class="fas fa-sign-out-alt mr-2"></i>
-                    Sign Out
-                </button>
-            </div>
-        </div>
-    `;
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('signin-screen').classList.add('hidden');
+    document.getElementById('access-denied-screen').classList.remove('hidden');
+    document.getElementById('main-app').classList.add('hidden');
 }
 
-function showSignInForm() {
-    document.body.innerHTML = `
-        <div class="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
-            <div class="text-center p-8 glass-effect rounded-2xl max-w-md">
-                <div class="w-16 h-16 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-full mx-auto mb-6 flex items-center justify-center">
-                    <i class="fas fa-crown text-yellow-900 text-2xl"></i>
-                </div>
-                <h2 class="text-3xl font-bold text-yellow-400 mb-2">Admin Portal</h2>
-                <p class="text-gray-300 mb-8">Sign in with your admin account to access the dashboard</p>
-                <button onclick="signInWithGoogle()" class="w-full bg-gradient-to-r from-blue-500 to-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:scale-105 transform transition-all duration-300">
-                    <i class="fab fa-google mr-2"></i>
-                    Sign in with Google
-                </button>
-                <p class="text-xs text-gray-500 mt-4">Only authorized administrators can access this system</p>
-            </div>
-        </div>
-    `;
+function showMainApp(user) {
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('signin-screen').classList.add('hidden');
+    document.getElementById('access-denied-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    
+    // Update admin info in header
+    updateAdminInfo(user);
 }
 
+function updateAdminInfo(user) {
+    document.getElementById('admin-name').textContent = user.displayName || 'Admin';
+    document.getElementById('admin-email').textContent = user.email;
+    document.getElementById('admin-avatar').src = user.photoURL || 
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'Admin')}&background=F59E0B&color=1F2937&size=40`;
+}
+
+// Authentication Functions
 async function signInWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('profile');
@@ -105,90 +100,62 @@ async function signInWithGoogle() {
     
     try {
         const result = await auth.signInWithPopup(provider);
-        console.log('Admin sign-in successful:', result.user.email);
+        console.log('✅ Sign-in successful:', result.user.email);
+        showNotification('Welcome to Koco Admin!', 'success');
     } catch (error) {
-        console.error('Sign-in error:', error);
-        alert('Sign-in failed: ' + error.message);
+        console.error('❌ Sign-in error:', error);
+        showNotification('Sign-in failed: ' + error.message, 'error');
     }
 }
 
 function signOut() {
     auth.signOut().then(() => {
-        console.log('Admin signed out');
-        isInitialized = false;
-        // Clear all timeouts
-        loadingTimeouts.forEach(timeout => clearTimeout(timeout));
-        loadingTimeouts.clear();
-        location.reload();
+        console.log('👋 Admin signed out');
+        currentAdmin = null;
+        allOrders = [];
+        allCustomers = [];
+        showNotification('Signed out successfully', 'success');
     }).catch(error => {
         console.error('Sign-out error:', error);
+        showNotification('Error signing out', 'error');
     });
 }
 
-// Dashboard Initialization with proper error handling
-async function initializeDashboard() {
-    console.log('Initializing admin dashboard...');
+// Data Loading Functions
+async function loadDashboardData() {
+    console.log('📊 Loading dashboard data...');
     
     try {
-        // Show loading states
-        showLoadingStates();
-        
-        // Load data with timeout protection
-        const loadDataPromise = Promise.all([
+        await Promise.all([
             loadOrders(),
             loadCustomers()
         ]);
         
-        // Set timeout for data loading
-        const timeoutPromise = new Promise((_, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error('Data loading timeout'));
-            }, 10000); // 10 second timeout
-            loadingTimeouts.add(timeout);
-        });
-        
-        await Promise.race([loadDataPromise, timeoutPromise]);
-        
-        // Update UI
-        updateDashboardStats();
-        
-        // Show orders section by default
-        showSection('orders');
-        
-        console.log('✅ Admin dashboard initialized successfully');
-        showSuccess('Dashboard loaded successfully!');
+        updateStats();
+        updateOrderCounts();
+        showNotification('Dashboard loaded successfully!', 'success');
         
     } catch (error) {
-        console.error('Error initializing dashboard:', error);
-        showError('Failed to load dashboard data. Please refresh and try again.');
-        hideLoadingStates();
+        console.error('❌ Error loading dashboard data:', error);
+        showNotification('Failed to load dashboard data', 'error');
     }
 }
 
-function showLoadingStates() {
-    const ordersLoading = document.getElementById('loading-orders');
-    const customersLoading = document.getElementById('customers-loading');
-    
-    if (ordersLoading) ordersLoading.classList.remove('hidden');
-    if (customersLoading) customersLoading.classList.remove('hidden');
-}
-
-function hideLoadingStates() {
-    const ordersLoading = document.getElementById('loading-orders');
-    const customersLoading = document.getElementById('customers-loading');
-    
-    if (ordersLoading) ordersLoading.classList.add('hidden');
-    if (customersLoading) customersLoading.classList.add('hidden');
-}
-
-// Data Loading Functions with proper error handling
 async function loadOrders() {
-    console.log('Loading orders...');
+    console.log('📦 Loading orders...');
+    
+    const ordersLoading = document.getElementById('orders-loading');
+    const ordersContainer = document.getElementById('orders-container');
+    const ordersEmpty = document.getElementById('orders-empty');
+    
+    ordersLoading.classList.remove('hidden');
+    ordersContainer.classList.add('hidden');
+    ordersEmpty.classList.add('hidden');
     
     try {
         const snapshot = await db.collection('orders')
             .orderBy('createdAt', 'desc')
-            .limit(100)
+            .limit(50)
             .get();
         
         allOrders = [];
@@ -200,47 +167,40 @@ async function loadOrders() {
         
         console.log(`✅ Loaded ${allOrders.length} orders`);
         
-        // Update UI
-        const loadingEl = document.getElementById('loading-orders');
-        const containerEl = document.getElementById('orders-container');
-        const emptyEl = document.getElementById('empty-orders');
-        
-        if (loadingEl) loadingEl.classList.add('hidden');
+        ordersLoading.classList.add('hidden');
         
         if (allOrders.length === 0) {
-            if (emptyEl) emptyEl.classList.remove('hidden');
-            if (containerEl) containerEl.classList.add('hidden');
+            ordersEmpty.classList.remove('hidden');
         } else {
+            ordersContainer.classList.remove('hidden');
             renderOrders(allOrders);
-            if (containerEl) containerEl.classList.remove('hidden');
-            if (emptyEl) emptyEl.classList.add('hidden');
         }
-        
-        return allOrders;
         
     } catch (error) {
-        console.error('Error loading orders:', error);
-        const loadingEl = document.getElementById('loading-orders');
-        const emptyEl = document.getElementById('empty-orders');
-        
-        if (loadingEl) loadingEl.classList.add('hidden');
-        if (emptyEl) {
-            emptyEl.classList.remove('hidden');
-            emptyEl.innerHTML = `
-                <div class="text-center py-12">
-                    <div class="text-6xl text-red-400 mb-4">⚠️</div>
-                    <h3 class="text-xl font-semibold text-red-400 mb-2">Failed to Load Orders</h3>
-                    <p class="text-gray-500 mb-4">Error: ${error.message}</p>
-                    <button onclick="loadOrders()" class="btn-primary">Try Again</button>
-                </div>
-            `;
-        }
-        throw error;
+        console.error('❌ Error loading orders:', error);
+        ordersLoading.classList.add('hidden');
+        ordersEmpty.classList.remove('hidden');
+        document.getElementById('orders-empty').innerHTML = `
+            <div class="text-center py-12">
+                <div class="text-6xl text-red-400 mb-4">⚠️</div>
+                <h3 class="text-xl font-semibold text-red-400 mb-2">Failed to Load Orders</h3>
+                <p class="text-gray-500 mb-4">Error: ${error.message}</p>
+                <button onclick="loadOrders()" class="btn-primary py-2 px-4 rounded-xl">Try Again</button>
+            </div>
+        `;
     }
 }
 
 async function loadCustomers() {
-    console.log('Loading customers...');
+    console.log('👥 Loading customers...');
+    
+    const customersLoading = document.getElementById('customers-loading');
+    const customersContainer = document.getElementById('customers-container');
+    const customersEmpty = document.getElementById('customers-empty');
+    
+    customersLoading.classList.remove('hidden');
+    customersContainer.classList.add('hidden');
+    customersEmpty.classList.add('hidden');
     
     try {
         const snapshot = await db.collection('users').get();
@@ -254,589 +214,184 @@ async function loadCustomers() {
         
         console.log(`✅ Loaded ${allCustomers.length} customers`);
         
-        // Update UI
-        const loadingEl = document.getElementById('customers-loading');
-        const containerEl = document.getElementById('customers-container');
-        const emptyEl = document.getElementById('empty-customers');
-        
-        if (loadingEl) loadingEl.classList.add('hidden');
+        customersLoading.classList.add('hidden');
         
         if (allCustomers.length === 0) {
-            if (emptyEl) emptyEl.classList.remove('hidden');
-            if (containerEl) containerEl.classList.add('hidden');
+            customersEmpty.classList.remove('hidden');
         } else {
+            customersContainer.classList.remove('hidden');
             renderCustomers(allCustomers);
-            if (containerEl) containerEl.classList.remove('hidden');
-            if (emptyEl) emptyEl.classList.add('hidden');
         }
-        
-        return allCustomers;
         
     } catch (error) {
-        console.error('Error loading customers:', error);
-        const loadingEl = document.getElementById('customers-loading');
-        const emptyEl = document.getElementById('empty-customers');
-        
-        if (loadingEl) loadingEl.classList.add('hidden');
-        if (emptyEl) {
-            emptyEl.classList.remove('hidden');
-            emptyEl.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="text-4xl text-red-400 mb-4">⚠️</div>
-                    <p class="text-red-400 mb-4">Failed to load customers: ${error.message}</p>
-                    <button onclick="loadCustomers()" class="btn-primary">Try Again</button>
-                </div>
-            `;
-        }
-        throw error;
+        console.error('❌ Error loading customers:', error);
+        customersLoading.classList.add('hidden');
+        customersEmpty.classList.remove('hidden');
     }
 }
 
-// Render Functions with null checks
+// Rendering Functions
 function renderOrders(orders) {
-    const tableBody = document.getElementById('orders-table-body');
-    if (!tableBody) {
-        console.error('Orders table body not found');
-        return;
-    }
+    const container = document.getElementById('orders-container');
+    if (!container || !orders) return;
     
-    if (!orders || orders.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center py-8 text-gray-400">
-                    No orders found matching your filter
-                </td>
-            </tr>
+    const filteredOrders = currentFilter === 'all' ? orders : 
+        orders.filter(order => (order.status || 'pending') === currentFilter);
+    
+    if (filteredOrders.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-12">
+                <div class="text-4xl text-gray-500 mb-4">🔍</div>
+                <p class="text-gray-400">No orders found for "${currentFilter}" status</p>
+            </div>
         `;
         return;
     }
     
-    tableBody.innerHTML = orders.map(order => {
+    container.innerHTML = filteredOrders.map(order => {
         const createdAt = order.createdAt ? order.createdAt.toDate() : new Date();
-        const itemsCount = order.items ? order.items.length : 0;
         const status = order.status || 'pending';
-        const orderId = order.orderId || order.id;
+        const itemsCount = order.items ? order.items.length : 0;
         
         return `
-            <tr class="hover:bg-yellow-400/5 transition-colors cursor-pointer" onclick="showOrderDetails('${order.id}')">
-                <td class="font-mono text-yellow-400">${orderId}</td>
-                <td>
+            <div class="order-card glass rounded-2xl p-4" onclick="showOrderDetails('${order.id}')">
+                <div class="flex items-start justify-between mb-3">
                     <div>
-                        <div class="font-medium text-gray-200">${order.customerName || 'Unknown'}</div>
-                        <div class="text-sm text-gray-400">${order.customerEmail || ''}</div>
-                        <div class="text-xs text-gray-500">${order.customerPhone || ''}</div>
+                        <h3 class="font-bold text-lg text-white">#${order.orderId || order.id.slice(0, 8)}</h3>
+                        <p class="text-gray-400 text-sm">${createdAt.toLocaleDateString()} at ${createdAt.toLocaleTimeString()}</p>
                     </div>
-                </td>
-                <td>
-                    <div class="flex items-center space-x-1 mb-1">
-                        ${order.items ? order.items.slice(0, 3).map(item => 
-                            `<span class="text-lg" title="${item.name || 'Unknown item'}">${item.emoji || '🍫'}</span>`
-                        ).join('') : '<span class="text-lg">🍫</span>'}
-                        ${itemsCount > 3 ? `<span class="text-xs text-gray-400">+${itemsCount - 3}</span>` : ''}
-                    </div>
-                    <div class="text-xs text-gray-400">${itemsCount} items</div>
-                </td>
-                <td class="font-semibold text-green-400">$${(order.totalPrice || 0).toFixed(2)}</td>
-                <td>
-                    <span class="px-2 py-1 rounded-full text-xs font-medium status-${status}">
+                    <span class="status-${status} px-3 py-1 rounded-full text-xs font-semibold">
                         ${status.charAt(0).toUpperCase() + status.slice(1)}
                     </span>
-                </td>
-                <td class="text-gray-400">
-                    <div>${createdAt.toLocaleDateString()}</div>
-                    <div class="text-xs">${createdAt.toLocaleTimeString()}</div>
-                </td>
-                <td>
-                    <div class="flex space-x-2">
-                        <button onclick="event.stopPropagation(); updateOrderStatus('${order.id}', 'confirmed')" 
-                                class="text-green-400 hover:text-green-300 transition-colors text-sm p-1" 
-                                title="Confirm Order">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button onclick="event.stopPropagation(); updateOrderStatus('${order.id}', 'preparing')" 
-                                class="text-blue-400 hover:text-blue-300 transition-colors text-sm p-1" 
-                                title="Mark as Preparing">
-                            <i class="fas fa-cookie-bite"></i>
-                        </button>
-                        <button onclick="event.stopPropagation(); updateOrderStatus('${order.id}', 'delivered')" 
-                                class="text-purple-400 hover:text-purple-300 transition-colors text-sm p-1" 
-                                title="Mark as Delivered">
-                            <i class="fas fa-truck"></i>
-                        </button>
+                </div>
+                
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <p class="font-semibold text-white">${order.customerName || 'Unknown Customer'}</p>
+                        <p class="text-gray-400 text-sm">${order.customerPhone || 'No phone'}</p>
                     </div>
-                </td>
-            </tr>
+                    <div class="text-right">
+                        <p class="font-bold text-2xl text-green-400">$${(order.totalPrice || 0).toFixed(2)}</p>
+                        <p class="text-gray-400 text-sm">${itemsCount} items</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-1 mb-3">
+                    ${order.items ? order.items.slice(0, 5).map(item => 
+                        `<span class="text-2xl" title="${item.name}">${item.emoji || '🍫'}</span>`
+                    ).join('') : '<span class="text-2xl">🍫</span>'}
+                    ${itemsCount > 5 ? `<span class="text-gray-400 text-sm">+${itemsCount - 5} more</span>` : ''}
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button onclick="event.stopPropagation(); showStatusModal('${order.id}')" class="flex-1 py-2 px-3 bg-yellow-500 text-gray-900 rounded-lg font-medium text-sm hover:bg-yellow-400 transition-colors">
+                        <i class="fas fa-edit mr-1"></i>
+                        Update Status
+                    </button>
+                    <button onclick="event.stopPropagation(); showOrderDetails('${order.id}')" class="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg font-medium text-sm hover:bg-blue-400 transition-colors">
+                        <i class="fas fa-eye mr-1"></i>
+                        View Details
+                    </button>
+                </div>
+            </div>
         `;
     }).join('');
 }
 
 function renderCustomers(customers) {
     const container = document.getElementById('customers-container');
-    if (!container) {
-        console.error('Customers container not found');
-        return;
-    }
+    if (!container || !customers) return;
     
-    if (!customers || customers.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-8 text-gray-400">
-                <div class="text-4xl mb-4">👥</div>
-                <p>No customers found</p>
+    container.innerHTML = customers.map(customer => {
+        const joinedAt = customer.createdAt ? customer.createdAt.toDate() : new Date();
+        
+        return `
+            <div class="glass rounded-2xl p-4">
+                <div class="flex items-center space-x-3 mb-3">
+                    <img src="${customer.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(customer.name || 'User')}&background=F59E0B&color=1F2937&size=48`}" 
+                         alt="${customer.name || 'User'}" 
+                         class="w-12 h-12 rounded-full border-2 border-yellow-400">
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-white">${customer.name || 'Unknown User'}</h3>
+                        <p class="text-gray-400 text-sm">${customer.email || 'No email'}</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-3">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-yellow-400">${customer.totalOrders || 0}</div>
+                        <div class="text-xs text-gray-400">Orders</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-400">$${(customer.totalSpent || 0).toFixed(0)}</div>
+                        <div class="text-xs text-gray-400">Spent</div>
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <p class="text-gray-400 text-xs">Member since ${joinedAt.toLocaleDateString()}</p>
+                    ${customer.phone ? `<p class="text-gray-400 text-xs">${customer.phone}</p>` : ''}
+                </div>
             </div>
         `;
-        return;
-    }
-    
-    container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            ${customers.map(customer => `
-                <div class="glass-effect rounded-lg p-4 hover:bg-yellow-400/5 transition-colors">
-                    <div class="flex items-center space-x-3 mb-3">
-                        <img src="${customer.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(customer.name || 'User')}&background=FCD34D&color=1F2937&size=40`}" 
-                             alt="${customer.name || 'User'}" 
-                             class="w-10 h-10 rounded-full">
-                        <div>
-                            <div class="font-medium text-gray-200">${customer.name || 'Unknown'}</div>
-                            <div class="text-sm text-gray-400">${customer.email || ''}</div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <div class="text-gray-400">Orders</div>
-                            <div class="font-semibold text-yellow-400">${customer.totalOrders || 0}</div>
-                        </div>
-                        <div>
-                            <div class="text-gray-400">Spent</div>
-                            <div class="font-semibold text-green-400">$${(customer.totalSpent || 0).toFixed(2)}</div>
-                        </div>
-                        <div class="col-span-2">
-                            <div class="text-gray-400">Phone</div>
-                            <div class="text-xs text-gray-300">${customer.phone || 'Not provided'}</div>
-                        </div>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
+    }).join('');
 }
 
-// Order Management Functions
-async function updateOrderStatus(orderId, newStatus) {
-    if (!orderId || !newStatus) {
-        showError('Invalid order or status');
-        return;
-    }
-    
-    try {
-        await db.collection('orders').doc(orderId).update({
-            status: newStatus,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        // Update local data
-        const orderIndex = allOrders.findIndex(order => order.id === orderId);
-        if (orderIndex !== -1) {
-            allOrders[orderIndex].status = newStatus;
-            allOrders[orderIndex].updatedAt = new Date();
-        }
-        
-        // Re-render orders
-        const filteredOrders = currentFilter === 'all' ? allOrders : 
-            allOrders.filter(order => order.status === currentFilter);
-        renderOrders(filteredOrders);
-        
-        // Update dashboard stats
-        updateDashboardStats();
-        
-        const shortOrderId = orderId.substring(0, 8);
-        showSuccess(`Order ${shortOrderId}... status updated to ${newStatus}`);
-        
-    } catch (error) {
-        console.error('Error updating order status:', error);
-        showError('Failed to update order status. Please try again.');
-    }
-}
-
-function showOrderDetails(orderId) {
-    const order = allOrders.find(o => o.id === orderId);
-    if (!order) {
-        showError('Order not found');
-        return;
-    }
-    
-    const modal = document.getElementById('order-modal');
-    const content = document.getElementById('order-details-content');
-    
-    if (!modal || !content) {
-        console.error('Order modal elements not found');
-        return;
-    }
-    
-    const createdAt = order.createdAt ? order.createdAt.toDate() : new Date();
-    
-    content.innerHTML = `
-        <div class="space-y-6">
-            <!-- Order Header -->
-            <div class="border-b border-gray-600 pb-4">
-                <div class="flex justify-between items-start mb-2">
-                    <h4 class="text-xl font-bold text-yellow-400">Order ${order.orderId || order.id}</h4>
-                    <span class="px-3 py-1 rounded-full text-sm font-medium status-${order.status || 'pending'}">
-                        ${(order.status || 'pending').charAt(0).toUpperCase() + (order.status || 'pending').slice(1)}
-                    </span>
-                </div>
-                <p class="text-gray-400">${createdAt.toLocaleDateString()} at ${createdAt.toLocaleTimeString()}</p>
-            </div>
-            
-            <!-- Customer Information -->
-            <div>
-                <h5 class="font-semibold text-yellow-400 mb-3">Customer Information</h5>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <div class="text-sm text-gray-400">Name</div>
-                        <div class="text-gray-200">${order.customerName || 'Unknown'}</div>
-                    </div>
-                    <div>
-                        <div class="text-sm text-gray-400">Email</div>
-                        <div class="text-gray-200">${order.customerEmail || 'Not provided'}</div>
-                    </div>
-                    <div>
-                        <div class="text-sm text-gray-400">Phone</div>
-                        <div class="text-gray-200">${order.customerPhone || 'Not provided'}</div>
-                    </div>
-                    <div>
-                        <div class="text-sm text-gray-400">Delivery Address</div>
-                        <div class="text-gray-200">${order.deliveryAddress || 'Not provided'}</div>
-                    </div>
-                </div>
-                ${order.specialInstructions ? `
-                <div class="mt-4">
-                    <div class="text-sm text-gray-400">Special Instructions</div>
-                    <div class="text-gray-200 bg-gray-800 rounded p-3 mt-1">${order.specialInstructions}</div>
-                </div>
-                ` : ''}
-            </div>
-            
-            <!-- Order Items -->
-            <div>
-                <h5 class="font-semibold text-yellow-400 mb-3">Order Items (${order.items ? order.items.length : 0})</h5>
-                <div class="space-y-3">
-                    ${order.items ? order.items.map(item => `
-                        <div class="flex justify-between items-center p-3 bg-gray-800 rounded">
-                            <div class="flex items-center space-x-3">
-                                <span class="text-2xl">${item.emoji || '🍫'}</span>
-                                <div>
-                                    <div class="font-medium text-gray-200">${item.name || 'Unknown item'}</div>
-                                    <div class="text-sm text-gray-400">${item.description || item.flavor || ''}</div>
-                                </div>
-                            </div>
-                            <div class="text-green-400 font-semibold">$${(item.price || 0).toFixed(2)}</div>
-                        </div>
-                    `).join('') : '<div class="text-gray-400">No items found</div>'}
-                </div>
-            </div>
-            
-            <!-- Order Summary -->
-            <div>
-                <h5 class="font-semibold text-yellow-400 mb-3">Order Summary</h5>
-                <div class="bg-gray-800 rounded p-4 space-y-2">
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Subtotal</span>
-                        <span class="text-gray-200">$${(order.subtotal || 0).toFixed(2)}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Delivery Fee</span>
-                        <span class="text-gray-200">$${(order.deliveryFee || 0).toFixed(2)}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-400">Tax</span>
-                        <span class="text-gray-200">$${(order.tax || 0).toFixed(2)}</span>
-                    </div>
-                    <div class="border-t border-gray-600 pt-2">
-                        <div class="flex justify-between font-semibold text-lg">
-                            <span class="text-yellow-400">Total</span>
-                            <span class="text-green-400">$${(order.totalPrice || 0).toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Status Update Actions -->
-            <div>
-                <h5 class="font-semibold text-yellow-400 mb-3">Update Status</h5>
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="updateOrderStatus('${order.id}', 'pending'); closeOrderModal();" class="btn-secondary">
-                        <i class="fas fa-clock mr-1"></i> Pending
-                    </button>
-                    <button onclick="updateOrderStatus('${order.id}', 'confirmed'); closeOrderModal();" class="btn-secondary">
-                        <i class="fas fa-check mr-1"></i> Confirmed
-                    </button>
-                    <button onclick="updateOrderStatus('${order.id}', 'preparing'); closeOrderModal();" class="btn-secondary">
-                        <i class="fas fa-cookie-bite mr-1"></i> Preparing
-                    </button>
-                    <button onclick="updateOrderStatus('${order.id}', 'ready'); closeOrderModal();" class="btn-secondary">
-                        <i class="fas fa-box mr-1"></i> Ready
-                    </button>
-                    <button onclick="updateOrderStatus('${order.id}', 'delivered'); closeOrderModal();" class="btn-secondary">
-                        <i class="fas fa-truck mr-1"></i> Delivered
-                    </button>
-                    <button onclick="updateOrderStatus('${order.id}', 'cancelled'); closeOrderModal();" class="btn-secondary text-red-400 border-red-400 hover:bg-red-400/10">
-                        <i class="fas fa-times mr-1"></i> Cancelled
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    modal.classList.remove('hidden');
-}
-
-function closeOrderModal() {
-    const modal = document.getElementById('order-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-}
-
-// Filter and Search Functions
-function filterOrders(status) {
-    currentFilter = status;
-    
-    // Update filter badges
-    document.querySelectorAll('.filter-badge').forEach(badge => {
-        badge.classList.remove('active');
-    });
-    
-    const activeBadge = document.querySelector(`[data-filter="${status}"]`);
-    if (activeBadge) {
-        activeBadge.classList.add('active');
-    }
-    
-    // Filter orders
-    const filteredOrders = status === 'all' ? allOrders : 
-        allOrders.filter(order => (order.status || 'pending') === status);
-    
-    renderOrders(filteredOrders);
-}
-
-function setupSearch() {
-    const searchBar = document.getElementById('search-bar');
-    if (!searchBar) return;
-    
-    let searchTimeout;
-    
-    searchBar.addEventListener('input', (e) => {
-        clearTimeout(searchTimeout);
-        
-        searchTimeout = setTimeout(() => {
-            const searchTerm = e.target.value.toLowerCase();
-            
-            if (!searchTerm.trim()) {
-                // Show all orders for current filter
-                const filteredOrders = currentFilter === 'all' ? allOrders :
-                    allOrders.filter(order => (order.status || 'pending') === currentFilter);
-                renderOrders(filteredOrders);
-                return;
-            }
-            
-            const filteredOrders = allOrders.filter(order => {
-                const matchesSearch = 
-                    (order.orderId && order.orderId.toLowerCase().includes(searchTerm)) ||
-                    (order.id && order.id.toLowerCase().includes(searchTerm)) ||
-                    (order.customerName && order.customerName.toLowerCase().includes(searchTerm)) ||
-                    (order.customerEmail && order.customerEmail.toLowerCase().includes(searchTerm)) ||
-                    (order.customerPhone && order.customerPhone.includes(searchTerm));
-                
-                const matchesFilter = currentFilter === 'all' || 
-                    (order.status || 'pending') === currentFilter;
-                
-                return matchesSearch && matchesFilter;
-            });
-            
-            renderOrders(filteredOrders);
-        }, 300); // Debounce search
-    });
-}
-
-// Dashboard Stats
-function updateDashboardStats() {
+// Stats and Analytics Functions
+function updateStats() {
     const totalOrders = allOrders.length;
     const totalRevenue = allOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
     const pendingOrders = allOrders.filter(order => (order.status || 'pending') === 'pending').length;
     const totalCustomers = allCustomers.length;
     
-    const totalOrdersEl = document.getElementById('total-orders');
-    const totalRevenueEl = document.getElementById('total-revenue');
-    const pendingOrdersEl = document.getElementById('pending-orders');
-    const totalCustomersEl = document.getElementById('total-customers');
+    document.getElementById('total-orders').textContent = totalOrders;
+    document.getElementById('total-revenue').textContent = `$${totalRevenue.toFixed(0)}`;
+    document.getElementById('pending-orders').textContent = pendingOrders;
+    document.getElementById('total-customers').textContent = totalCustomers;
     
-    if (totalOrdersEl) totalOrdersEl.textContent = totalOrders;
-    if (totalRevenueEl) totalRevenueEl.textContent = `$${totalRevenue.toFixed(2)}`;
-    if (pendingOrdersEl) pendingOrdersEl.textContent = pendingOrders;
-    if (totalCustomersEl) totalCustomersEl.textContent = totalCustomers;
+    // Analytics tab stats
+    const today = new Date().toDateString();
+    const todayOrders = allOrders.filter(order => {
+        if (!order.createdAt) return false;
+        return order.createdAt.toDate().toDateString() === today;
+    }).length;
+    
+    const avgOrderValue = totalOrders > 0 ? (totalRevenue / totalOrders) : 0;
+    
+    document.getElementById('today-orders').textContent = todayOrders;
+    document.getElementById('avg-order-value').textContent = `$${avgOrderValue.toFixed(2)}`;
+    
+    updatePopularItems();
+    updateRecentActivity();
 }
 
-// Charts with proper cleanup
-function initializeCharts() {
-    // Destroy existing charts to prevent infinite loops
-    Object.values(charts).forEach(chart => {
-        if (chart && typeof chart.destroy === 'function') {
-            chart.destroy();
-        }
-    });
-    charts = {};
-    
-    try {
-        initializeRevenueChart();
-        initializeStatusChart();
-        initializePopularItemsChart();
-        initializeTrendsChart();
-    } catch (error) {
-        console.error('Error initializing charts:', error);
-    }
-}
-
-function initializeRevenueChart() {
-    const ctx = document.getElementById('revenueChart');
-    if (!ctx) return;
-    
-    // Clear any existing chart
-    if (charts.revenue) {
-        charts.revenue.destroy();
-    }
-    
-    // Group orders by date (last 7 days)
-    const revenueByDate = {};
-    const last7Days = [];
-    
-    for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        last7Days.push(dateStr);
-        revenueByDate[dateStr] = 0;
-    }
-    
-    allOrders.forEach(order => {
-        if (order.createdAt) {
-            const orderDate = order.createdAt.toDate();
-            const dateStr = orderDate.toISOString().split('T')[0];
-            if (revenueByDate.hasOwnProperty(dateStr)) {
-                revenueByDate[dateStr] += order.totalPrice || 0;
-            }
-        }
-    });
-    
-    const data = last7Days.map(date => revenueByDate[date]);
-    const labels = last7Days.map(date => new Date(date).toLocaleDateString());
-    
-    charts.revenue = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Revenue',
-                data: data,
-                borderColor: '#FCD34D',
-                backgroundColor: 'rgba(252, 211, 77, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: { color: '#D1D5DB' }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: '#9CA3AF',
-                        callback: function(value) {
-                            return '$' + value.toFixed(0);
-                        }
-                    },
-                    grid: { color: 'rgba(156, 163, 175, 0.2)' }
-                },
-                x: {
-                    ticks: { color: '#9CA3AF' },
-                    grid: { color: 'rgba(156, 163, 175, 0.2)' }
-                }
-            }
-        }
-    });
-}
-
-function initializeStatusChart() {
-    const ctx = document.getElementById('statusChart');
-    if (!ctx) return;
-    
-    if (charts.status) {
-        charts.status.destroy();
-    }
-    
-    const statusCounts = {};
-    const statusColors = {
-        pending: '#FDB462',
-        confirmed: '#80CED7',
-        preparing: '#A8DADC',
-        ready: '#B5E48C',
-        delivered: '#90EE90',
-        cancelled: '#FF6B6B'
+function updateOrderCounts() {
+    const counts = {
+        all: allOrders.length,
+        pending: 0,
+        confirmed: 0,
+        preparing: 0,
+        ready: 0,
+        delivered: 0,
+        cancelled: 0
     };
     
     allOrders.forEach(order => {
         const status = order.status || 'pending';
-        statusCounts[status] = (statusCounts[status] || 0) + 1;
+        if (counts.hasOwnProperty(status)) {
+            counts[status]++;
+        }
     });
     
-    const labels = Object.keys(statusCounts);
-    const data = Object.values(statusCounts);
-    const colors = labels.map(status => statusColors[status] || '#9CA3AF');
-    
-    if (labels.length === 0) {
-        // Show empty state
-        ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
-        return;
-    }
-    
-    charts.status = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels.map(s => s.charAt(0).toUpperCase() + s.slice(1)),
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: '#D1D5DB',
-                        padding: 20
-                    }
-                }
-            }
+    Object.keys(counts).forEach(status => {
+        const element = document.getElementById(`count-${status}`);
+        if (element) {
+            element.textContent = counts[status];
         }
     });
 }
 
-function initializePopularItemsChart() {
-    const ctx = document.getElementById('popularItemsChart');
-    if (!ctx) return;
-    
-    if (charts.popularItems) {
-        charts.popularItems.destroy();
-    }
-    
+function updatePopularItems() {
     const itemCounts = {};
     
     allOrders.forEach(order => {
@@ -853,289 +408,353 @@ function initializePopularItemsChart() {
         .sort(([,a], [,b]) => b - a)
         .slice(0, 5);
     
-    if (sortedItems.length === 0) {
-        ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
-        return;
-    }
-    
-    const labels = sortedItems.map(([name]) => name);
-    const data = sortedItems.map(([,count]) => count);
-    
-    charts.popularItems = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Orders',
-                data: data,
-                backgroundColor: '#FCD34D',
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: '#9CA3AF' },
-                    grid: { color: 'rgba(156, 163, 175, 0.2)' }
-                },
-                x: {
-                    ticks: { color: '#9CA3AF' },
-                    grid: { display: false }
-                }
-            }
+    const container = document.getElementById('popular-items-container');
+    if (container) {
+        if (sortedItems.length === 0) {
+            container.innerHTML = '<p class="text-gray-400">No items data available</p>';
+        } else {
+            container.innerHTML = sortedItems.map(([name, count], index) => `
+                <div class="flex items-center justify-between py-2">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-yellow-500 text-gray-900 rounded-full flex items-center justify-center font-bold text-sm">
+                            ${index + 1}
+                        </div>
+                        <span class="text-white">${name}</span>
+                    </div>
+                    <span class="text-yellow-400 font-semibold">${count} orders</span>
+                </div>
+            `).join('');
         }
-    });
+    }
 }
 
-function initializeTrendsChart() {
-    const ctx = document.getElementById('trendsChart');
-    if (!ctx) return;
+function updateRecentActivity() {
+    const recentOrders = allOrders
+        .filter(order => order.createdAt)
+        .sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate())
+        .slice(0, 5);
     
-    if (charts.trends) {
-        charts.trends.destroy();
-    }
-    
-    const ordersByDate = {};
-    const last30Days = [];
-    
-    for (let i = 29; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        last30Days.push(dateStr);
-        ordersByDate[dateStr] = 0;
-    }
-    
-    allOrders.forEach(order => {
-        if (order.createdAt) {
-            const orderDate = order.createdAt.toDate();
-            const dateStr = orderDate.toISOString().split('T')[0];
-            if (ordersByDate.hasOwnProperty(dateStr)) {
-                ordersByDate[dateStr]++;
-            }
+    const container = document.getElementById('recent-activity-container');
+    if (container) {
+        if (recentOrders.length === 0) {
+            container.innerHTML = '<p class="text-gray-400">No recent activity</p>';
+        } else {
+            container.innerHTML = recentOrders.map(order => {
+                const createdAt = order.createdAt.toDate();
+                const timeAgo = getTimeAgo(createdAt);
+                const status = order.status || 'pending';
+                
+                return `
+                    <div class="flex items-center justify-between py-2">
+                        <div>
+                            <p class="text-white font-medium">Order #${order.orderId || order.id.slice(0, 8)}</p>
+                            <p class="text-gray-400 text-sm">${order.customerName || 'Unknown'} • ${timeAgo}</p>
+                        </div>
+                        <span class="status-${status} px-2 py-1 rounded text-xs font-medium">
+                            ${status.charAt(0).toUpperCase() + status.slice(1)}
+                        </span>
+                    </div>
+                `;
+            }).join('');
         }
-    });
-    
-    const data = last30Days.map(date => ordersByDate[date]);
-    const labels = last30Days.map(date => new Date(date).toLocaleDateString());
-    
-    charts.trends = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Orders',
-                data: data,
-                borderColor: '#8B5CF6',
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: { color: '#D1D5DB' }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: '#9CA3AF',
-                        stepSize: 1
-                    },
-                    grid: { color: 'rgba(156, 163, 175, 0.2)' }
-                },
-                x: {
-                    ticks: {
-                        color: '#9CA3AF',
-                        maxTicksLimit: 7
-                    },
-                    grid: { color: 'rgba(156, 163, 175, 0.2)' }
-                }
-            }
-        }
-    });
-}
-
-// Navigation Functions
-function showSection(sectionName) {
-    const titles = {
-        dashboard: { title: 'Dashboard', subtitle: 'Overview and analytics' },
-        orders: { title: 'Orders Management', subtitle: 'Monitor and manage customer orders' },
-        customers: { title: 'Customers', subtitle: 'View customer information and history' },
-        analytics: { title: 'Analytics', subtitle: 'Detailed reports and insights' }
-    };
-    
-    const titleInfo = titles[sectionName] || titles.orders;
-    
-    const pageTitleEl = document.getElementById('page-title');
-    const pageSubtitleEl = document.getElementById('page-subtitle');
-    
-    if (pageTitleEl) pageTitleEl.textContent = titleInfo.title;
-    if (pageSubtitleEl) pageSubtitleEl.textContent = titleInfo.subtitle;
-    
-    // Hide all sections
-    document.querySelectorAll('main section').forEach(section => {
-        section.classList.add('hidden');
-    });
-    
-    // Show selected section
-    const targetSection = document.getElementById(`${sectionName}-section`);
-    if (targetSection) {
-        targetSection.classList.remove('hidden');
-    }
-    
-    // Update navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    const activeNav = document.querySelector(`a[href="#${sectionName}"]`);
-    if (activeNav) activeNav.classList.add('active');
-    
-    // Initialize charts if showing dashboard or analytics
-    if (sectionName === 'dashboard' || sectionName === 'analytics') {
-        // Delay chart initialization to ensure DOM is ready
-        setTimeout(() => {
-            initializeCharts();
-        }, 100);
     }
 }
 
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('main-content');
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
     
-    if (sidebar && mainContent) {
-        sidebar.classList.toggle('hidden');
-        sidebar.classList.toggle('show');
-        mainContent.classList.toggle('full-width');
-    }
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays}d ago`;
 }
 
-// Utility Functions
-async function refreshData() {
-    const button = event?.target?.closest('button');
-    let originalHTML = '';
+// Tab Management
+function showTab(tabName) {
+    // Update current section in header
+    document.getElementById('current-section').textContent = 
+        tabName.charAt(0).toUpperCase() + tabName.slice(1);
     
-    if (button) {
-        originalHTML = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Refreshing...';
-        button.disabled = true;
+    // Update tab buttons
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('hover:bg-white/10');
+    });
+    
+    const activeTab = document.querySelector(`[data-tab="${tabName}"]`);
+    if (activeTab) {
+        activeTab.classList.add('tab-active');
+        activeTab.classList.remove('hover:bg-white/10');
     }
+    
+    // Show/hide tab content
+    document.getElementById('orders-tab').classList.add('hidden');
+    document.getElementById('customers-tab').classList.add('hidden');
+    document.getElementById('analytics-tab').classList.add('hidden');
+    
+    document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+}
+
+// Filter Management
+function filterOrders(status) {
+    currentFilter = status;
+    
+    // Update filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('filter-active');
+        btn.classList.add('hover:bg-white/10');
+    });
+    
+    const activeFilter = document.querySelector(`[data-filter="${status}"]`);
+    if (activeFilter) {
+        activeFilter.classList.add('filter-active');
+        activeFilter.classList.remove('hover:bg-white/10');
+    }
+    
+    // Re-render orders with filter
+    renderOrders(allOrders);
+}
+
+// Order Details Modal
+function showOrderDetails(orderId) {
+    const order = allOrders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    const modal = document.getElementById('order-modal');
+    const content = document.getElementById('order-modal-content');
+    
+    const createdAt = order.createdAt ? order.createdAt.toDate() : new Date();
+    
+    content.innerHTML = `
+        <!-- Order Header -->
+        <div class="border-b border-gray-700 pb-4 mb-6">
+            <div class="flex items-start justify-between">
+                <div>
+                    <h4 class="text-2xl font-bold text-yellow-400">Order #${order.orderId || order.id.slice(0, 8)}</h4>
+                    <p class="text-gray-400">${createdAt.toLocaleDateString()} at ${createdAt.toLocaleTimeString()}</p>
+                </div>
+                <span class="status-${order.status || 'pending'} px-4 py-2 rounded-full font-semibold">
+                    ${(order.status || 'pending').charAt(0).toUpperCase() + (order.status || 'pending').slice(1)}
+                </span>
+            </div>
+        </div>
+        
+        <!-- Customer Info -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+                <h5 class="font-semibold text-yellow-400 mb-3">Customer Information</h5>
+                <div class="space-y-2">
+                    <p class="text-white"><strong>Name:</strong> ${order.customerName || 'Unknown'}</p>
+                    <p class="text-white"><strong>Email:</strong> ${order.customerEmail || 'Not provided'}</p>
+                    <p class="text-white"><strong>Phone:</strong> ${order.customerPhone || 'Not provided'}</p>
+                </div>
+            </div>
+            <div>
+                <h5 class="font-semibold text-yellow-400 mb-3">Delivery Address</h5>
+                <p class="text-white bg-gray-800 rounded-lg p-3">${order.deliveryAddress || 'Not provided'}</p>
+            </div>
+        </div>
+        
+        <!-- Order Items -->
+        <div class="mb-6">
+            <h5 class="font-semibold text-yellow-400 mb-3">Order Items (${order.items ? order.items.length : 0})</h5>
+            <div class="space-y-3">
+                ${order.items ? order.items.map(item => `
+                    <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl">${item.emoji || '🍫'}</span>
+                            <div>
+                                <p class="font-medium text-white">${item.name || 'Unknown item'}</p>
+                                <p class="text-gray-400 text-sm">${item.description || item.flavor || ''}</p>
+                            </div>
+                        </div>
+                        <span class="text-green-400 font-bold text-lg">$${(item.price || 0).toFixed(2)}</span>
+                    </div>
+                `).join('') : '<p class="text-gray-400">No items found</p>'}
+            </div>
+        </div>
+        
+        <!-- Order Summary -->
+        <div class="bg-gray-800 rounded-lg p-4 mb-6">
+            <h5 class="font-semibold text-yellow-400 mb-3">Order Summary</h5>
+            <div class="space-y-2">
+                <div class="flex justify-between"><span class="text-gray-400">Subtotal:</span><span class="text-white">$${(order.subtotal || 0).toFixed(2)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Delivery Fee:</span><span class="text-white">$${(order.deliveryFee || 0).toFixed(2)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Tax:</span><span class="text-white">$${(order.tax || 0).toFixed(2)}</span></div>
+                <div class="border-t border-gray-700 pt-2">
+                    <div class="flex justify-between font-bold text-lg">
+                        <span class="text-yellow-400">Total:</span>
+                        <span class="text-green-400">$${(order.totalPrice || 0).toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        ${order.specialInstructions ? `
+        <div class="bg-gray-800 rounded-lg p-4 mb-6">
+            <h5 class="font-semibold text-yellow-400 mb-2">Special Instructions</h5>
+            <p class="text-white">${order.specialInstructions}</p>
+        </div>
+        ` : ''}
+        
+        <!-- Action Buttons -->
+        <div class="flex space-x-3">
+            <button onclick="showStatusModal('${order.id}'); closeOrderModal();" class="flex-1 btn-primary py-3 rounded-xl">
+                <i class="fas fa-edit mr-2"></i>
+                Update Status
+            </button>
+            <button onclick="closeOrderModal()" class="flex-1 py-3 px-4 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition-colors">
+                <i class="fas fa-times mr-2"></i>
+                Close
+            </button>
+        </div>
+    `;
+    
+    modal.classList.remove('hidden');
+}
+
+function closeOrderModal() {
+    document.getElementById('order-modal').classList.add('hidden');
+}
+
+// Status Update Modal
+function showStatusModal(orderId) {
+    currentOrderId = orderId;
+    const order = allOrders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    const modal = document.getElementById('status-modal');
+    const orderInfo = document.getElementById('status-order-info');
+    
+    orderInfo.innerHTML = `
+        <div class="text-center">
+            <h4 class="text-lg font-bold text-white">Order #${order.orderId || order.id.slice(0, 8)}</h4>
+            <p class="text-gray-400">${order.customerName || 'Unknown Customer'}</p>
+            <span class="inline-block mt-2 status-${order.status || 'pending'} px-3 py-1 rounded-full text-sm font-medium">
+                Current: ${(order.status || 'pending').charAt(0).toUpperCase() + (order.status || 'pending').slice(1)}
+            </span>
+        </div>
+    `;
+    
+    modal.classList.remove('hidden');
+}
+
+function closeStatusModal() {
+    document.getElementById('status-modal').classList.add('hidden');
+    currentOrderId = null;
+}
+
+// Update Order Status
+async function updateOrderStatus(newStatus) {
+    if (!currentOrderId || isLoading) return;
+    
+    isLoading = true;
     
     try {
-        showSuccess('Refreshing data...');
+        await db.collection('orders').doc(currentOrderId).update({
+            status: newStatus,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
         
-        await Promise.all([
-            loadOrders(),
-            loadCustomers()
-        ]);
-        
-        updateDashboardStats();
-        
-        // Re-initialize charts if on dashboard
-        const dashboardSection = document.getElementById('dashboard-section');
-        if (dashboardSection && !dashboardSection.classList.contains('hidden')) {
-            setTimeout(() => initializeCharts(), 100);
+        // Update local data
+        const orderIndex = allOrders.findIndex(order => order.id === currentOrderId);
+        if (orderIndex !== -1) {
+            allOrders[orderIndex].status = newStatus;
         }
         
-        showSuccess('Data refreshed successfully!');
+        closeStatusModal();
+        renderOrders(allOrders);
+        updateStats();
+        updateOrderCounts();
+        
+        showNotification(`Order status updated to ${newStatus}`, 'success');
         
     } catch (error) {
-        console.error('Error refreshing data:', error);
-        showError('Failed to refresh data: ' + error.message);
+        console.error('Error updating order status:', error);
+        showNotification('Failed to update order status', 'error');
     } finally {
-        if (button) {
-            button.innerHTML = originalHTML;
-            button.disabled = false;
-        }
+        isLoading = false;
     }
 }
 
-// Notification Functions
-function showSuccess(message) {
-    showNotification(message, 'success');
+// Refresh Data
+async function refreshData() {
+    if (isLoading) return;
+    
+    const button = document.querySelector('.fab-button');
+    const originalIcon = button.innerHTML;
+    
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    button.disabled = true;
+    
+    try {
+        await loadDashboardData();
+        showNotification('Data refreshed successfully!', 'success');
+    } catch (error) {
+        showNotification('Failed to refresh data', 'error');
+    } finally {
+        button.innerHTML = originalIcon;
+        button.disabled = false;
+    }
 }
 
-function showError(message) {
-    showNotification(message, 'error');
-}
-
+// Notification System
 function showNotification(message, type = 'info') {
     // Remove existing notifications
-    document.querySelectorAll('.notification').forEach(n => n.remove());
+    const existing = document.querySelector('.notification');
+    if (existing) existing.remove();
     
     const notification = document.createElement('div');
-    notification.className = `notification fixed top-6 right-6 z-50 px-6 py-4 rounded-lg shadow-lg transform transition-all duration-300 max-w-md`;
+    notification.className = 'notification fixed top-6 right-6 z-[60] px-6 py-4 rounded-xl shadow-lg max-w-sm transform transition-all duration-300';
     
     if (type === 'success') {
         notification.className += ' bg-green-600 text-white';
     } else if (type === 'error') {
         notification.className += ' bg-red-600 text-white';
     } else {
-        notification.className += ' bg-yellow-600 text-white';
+        notification.className += ' bg-yellow-600 text-gray-900';
     }
     
     notification.innerHTML = `
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} mr-3"></i>
-                <span>${message}</span>
-            </div>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                <i class="fas fa-times"></i>
-            </button>
+        <div class="flex items-center">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} mr-3"></i>
+            <span class="font-medium">${message}</span>
         </div>
     `;
     
-    notification.style.transform = 'translateX(100%)';
     document.body.appendChild(notification);
-    
-    // Animate in
-    setTimeout(() => {
-        notification.style.transform = 'translateX(0)';
-    }, 100);
     
     // Auto remove
     setTimeout(() => {
-        if (document.body.contains(notification)) {
-            notification.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                if (document.body.contains(notification)) {
-                    notification.remove();
-                }
-            }, 300);
+        if (notification.parentNode) {
+            notification.remove();
         }
-    }, 5000);
+    }, 4000);
 }
 
-// Initialize when DOM is loaded
+// Initialize when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Admin panel DOM loaded');
+    console.log('🚀 Admin panel DOM loaded');
+    console.log('🔧 Firebase config:', firebaseConfig.projectId);
+    console.log('📧 Admin emails:', ADMIN_EMAILS);
     
-    // Setup search functionality
-    setupSearch();
+    // Show loading screen initially
+    showLoadingScreen();
     
-    // Setup modal close on outside click
-    const orderModal = document.getElementById('order-modal');
-    if (orderModal) {
-        orderModal.addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                closeOrderModal();
-            }
-        });
-    }
+    // Add CSS for filter active state
+    const style = document.createElement('style');
+    style.textContent = `
+        .filter-active {
+            background: var(--secondary) !important;
+            color: var(--primary) !important;
+        }
+    `;
+    document.head.appendChild(style);
     
-    console.log('✅ Admin panel setup complete');
+    console.log('✅ Admin panel initialized');
 });
