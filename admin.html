@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Koco Delight - Admin Dashboard</title>
     
-    <!-- External Libraries -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Firebase -->
@@ -13,93 +13,105 @@
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
     
-    <!-- Chart.js for Analytics -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Custom Styles -->
     <style>
         :root {
-            --primary-dark: #1A1208;
-            --primary-medium: #3C2A21;
-            --primary-light: #E5E5CB;
-            --accent-gold: #D5CEA3;
-            --accent-copper: #B85C38;
-            --accent-bronze: #A27B5C;
+            --primary: #1F2937;
+            --primary-light: #374151;
+            --secondary: #F59E0B;
+            --secondary-light: #FCD34D;
+            --accent: #10B981;
+            --accent-light: #34D399;
+            --danger: #EF4444;
+            --danger-light: #F87171;
+            --success: #059669;
+            --warning: #D97706;
+        }
+
+        * {
+            font-family: 'Inter', sans-serif;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, var(--primary-dark) 0%, #2C1810 100%);
-            color: var(--primary-light);
+            background: linear-gradient(135deg, #1F2937 0%, #374151 100%);
             min-height: 100vh;
         }
 
-        .glass-effect {
-            background: rgba(26, 18, 8, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(213, 206, 163, 0.15);
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--accent-gold) 0%, #BFB280 100%);
-            color: var(--primary-dark);
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-light) 100%);
+            color: var(--primary);
             font-weight: 600;
-            cursor: pointer;
             transition: all 0.3s ease;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(213, 206, 163, 0.3);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
         }
 
-        .btn-secondary {
-            background: rgba(162, 123, 92, 0.2);
-            color: var(--accent-bronze);
-            border: 1px solid var(--accent-bronze);
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
+        .btn-success {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+            color: white;
+            font-weight: 600;
         }
 
-        .btn-secondary:hover {
-            background: rgba(162, 123, 92, 0.3);
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, var(--danger-light) 100%);
+            color: white;
+            font-weight: 600;
         }
 
-        .status-pending { color: #FDB462; background: rgba(253, 180, 98, 0.1); }
-        .status-confirmed { color: #80CED7; background: rgba(128, 206, 215, 0.1); }
-        .status-preparing { color: #A8DADC; background: rgba(168, 218, 220, 0.1); }
-        .status-ready { color: #B5E48C; background: rgba(181, 228, 140, 0.1); }
-        .status-delivered { color: #90EE90; background: rgba(144, 238, 144, 0.1); }
-        .status-cancelled { color: #FF6B6B; background: rgba(255, 107, 107, 0.1); }
-
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 3rem;
+        .status-pending { 
+            background: rgba(251, 191, 36, 0.2); 
+            color: #FBBF24; 
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        .status-confirmed { 
+            background: rgba(59, 130, 246, 0.2); 
+            color: #3B82F6; 
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        .status-preparing { 
+            background: rgba(168, 85, 247, 0.2); 
+            color: #A855F7; 
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+        .status-ready { 
+            background: rgba(34, 197, 94, 0.2); 
+            color: #22C55E; 
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .status-delivered { 
+            background: rgba(16, 185, 129, 0.2); 
+            color: #10B981; 
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .status-cancelled { 
+            background: rgba(239, 68, 68, 0.2); 
+            color: #EF4444; 
+            border: 1px solid rgba(239, 68, 68, 0.3);
         }
 
-        .spinner {
-            animation: spin 1s linear infinite;
-            width: 2rem;
-            height: 2rem;
-            border: 2px solid var(--accent-bronze);
-            border-top: 2px solid var(--accent-gold);
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--secondary);
             border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
         }
 
         @keyframes spin {
@@ -107,364 +119,361 @@
             100% { transform: rotate(360deg); }
         }
 
-        .stats-card {
-            background: linear-gradient(135deg, rgba(213, 206, 163, 0.1) 0%, rgba(162, 123, 92, 0.1) 100%);
-            border: 1px solid rgba(213, 206, 163, 0.2);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            text-align: center;
+        .tab-active {
+            background: var(--secondary);
+            color: var(--primary);
+        }
+
+        .order-card {
             transition: all 0.3s ease;
         }
 
-        .stats-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
 
-        .table-container {
-            overflow-x: auto;
-            border-radius: 1rem;
-            border: 1px solid rgba(213, 206, 163, 0.15);
-            max-height: 600px;
-            overflow-y: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid rgba(213, 206, 163, 0.1);
-        }
-
-        th {
-            background: rgba(26, 18, 8, 0.9);
-            color: var(--accent-gold);
-            font-weight: 600;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        tr:hover {
-            background: rgba(213, 206, 163, 0.05);
-        }
-
-        .search-bar {
-            background: rgba(26, 18, 8, 0.5);
-            border: 1px solid rgba(213, 206, 163, 0.2);
-            border-radius: 0.5rem;
-            padding: 0.75rem;
-            color: var(--primary-light);
-            width: 100%;
-        }
-
-        .search-bar:focus {
-            outline: none;
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 0 3px rgba(213, 206, 163, 0.1);
-        }
-
-        .filter-badge {
-            background: rgba(162, 123, 92, 0.2);
-            color: var(--accent-bronze);
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 500;
+        .fab-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-light) 100%);
+            color: var(--primary);
+            border: none;
+            font-size: 24px;
+            font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
-            border: 1px solid transparent;
+            z-index: 1000;
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
         }
 
-        .filter-badge:hover {
-            background: rgba(162, 123, 92, 0.3);
+        .fab-button:hover {
+            transform: scale(1.1);
         }
 
-        .filter-badge.active {
-            background: var(--accent-gold);
-            color: var(--primary-dark);
-            border-color: var(--accent-gold);
-        }
-
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100vh;
-            width: 16rem;
-            background: rgba(26, 18, 8, 0.95);
-            backdrop-filter: blur(20px);
-            border-right: 1px solid rgba(213, 206, 163, 0.15);
-            z-index: 30;
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar.hidden {
-            transform: translateX(-100%);
-        }
-
-        .main-content {
-            margin-left: 16rem;
-            transition: margin-left 0.3s ease;
-            min-height: 100vh;
-        }
-
-        .main-content.full-width {
-            margin-left: 0;
-        }
-
-        .nav-item.active {
-            background: rgba(252, 211, 77, 0.1);
-            color: #FCD34D;
-            border-radius: 0.5rem;
-        }
-
-        .chart-container {
-            position: relative;
-            height: 300px;
-        }
-
+        /* Mobile optimizations */
         @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                transform: translateX(-100%);
-            }
-            .sidebar.show {
-                transform: translateX(0);
-            }
-            .main-content {
-                margin-left: 0;
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
             }
         }
     </style>
 </head>
-<body class="antialiased">
-    <!-- Sidebar -->
-    <aside id="sidebar" class="sidebar">
-        <div class="p-6">
-            <div class="flex items-center space-x-3 mb-8">
-                <div class="w-10 h-10 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-lg flex items-center justify-center shadow-lg">
-                    <i class="fas fa-crown text-yellow-900 text-lg"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold text-yellow-400">Koco Admin</h1>
-                    <p class="text-xs text-gray-400">Dashboard</p>
-                </div>
-            </div>
-
-            <nav class="space-y-2">
-                <a href="#dashboard" onclick="showSection('dashboard')" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:text-yellow-400 hover:bg-yellow-400/10 transition-all duration-200">
-                    <i class="fas fa-chart-line w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="#orders" onclick="showSection('orders')" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:text-yellow-400 hover:bg-yellow-400/10 transition-all duration-200 active">
-                    <i class="fas fa-shopping-bag w-5"></i>
-                    <span>Orders</span>
-                </a>
-                <a href="#customers" onclick="showSection('customers')" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:text-yellow-400 hover:bg-yellow-400/10 transition-all duration-200">
-                    <i class="fas fa-users w-5"></i>
-                    <span>Customers</span>
-                </a>
-                <a href="#analytics" onclick="showSection('analytics')" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:text-yellow-400 hover:bg-yellow-400/10 transition-all duration-200">
-                    <i class="fas fa-chart-pie w-5"></i>
-                    <span>Analytics</span>
-                </a>
-            </nav>
+<body class="bg-gray-900 text-white">
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="loading-spinner"></div>
+            <h2 class="text-2xl font-bold text-yellow-400 mt-4">Koco Admin</h2>
+            <p class="text-gray-400 mt-2">Loading dashboard...</p>
         </div>
+    </div>
 
-        <div class="absolute bottom-6 left-6 right-6">
-            <div class="bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-4">
-                <div class="flex items-center space-x-3 mb-2">
-                    <img id="admin-avatar" class="w-8 h-8 rounded-full" src="" alt="Admin">
-                    <div>
-                        <p id="admin-name" class="text-sm font-medium text-yellow-400">Admin</p>
-                        <p id="admin-email" class="text-xs text-gray-400">admin@kocodelight.com</p>
-                    </div>
-                </div>
-                <button onclick="signOut()" class="w-full text-left text-xs text-red-400 hover:text-red-300 transition-colors">
-                    <i class="fas fa-sign-out-alt mr-1"></i>
-                    Sign Out
-                </button>
+    <!-- Sign In Screen -->
+    <div id="signin-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-40 hidden">
+        <div class="glass rounded-3xl p-8 mx-4 max-w-sm w-full text-center">
+            <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center">
+                <i class="fas fa-crown text-gray-900 text-2xl"></i>
             </div>
+            <h1 class="text-3xl font-bold text-yellow-400 mb-2">Admin Login</h1>
+            <p class="text-gray-300 mb-8">Sign in to manage your chocolate orders</p>
+            <button onclick="signInWithGoogle()" class="w-full btn-primary py-4 rounded-xl text-lg">
+                <i class="fab fa-google mr-3"></i>
+                Sign in with Google
+            </button>
+            <p class="text-xs text-gray-500 mt-4">Only authorized admins can access</p>
         </div>
-    </aside>
+    </div>
 
-    <!-- Main Content -->
-    <main id="main-content" class="main-content">
+    <!-- Access Denied Screen -->
+    <div id="access-denied-screen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-40 hidden">
+        <div class="glass rounded-3xl p-8 mx-4 max-w-sm w-full text-center">
+            <div class="text-6xl text-red-400 mb-6">🚫</div>
+            <h1 class="text-2xl font-bold text-red-400 mb-4">Access Denied</h1>
+            <p class="text-gray-300 mb-6">You don't have admin permissions</p>
+            <button onclick="signOut()" class="w-full btn-danger py-3 rounded-xl">
+                <i class="fas fa-sign-out-alt mr-2"></i>
+                Sign Out
+            </button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" class="hidden">
+        
         <!-- Header -->
-        <header class="bg-black/20 backdrop-blur-sm border-b border-yellow-400/20 p-6">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="toggleSidebar()" class="md:hidden text-yellow-400 hover:text-yellow-300 transition-colors">
-                        <i class="fas fa-bars text-xl"></i>
-                    </button>
-                    <div>
-                        <h2 id="page-title" class="text-2xl font-bold text-yellow-400">Orders Management</h2>
-                        <p id="page-subtitle" class="text-gray-400">Monitor and manage customer orders</p>
+        <header class="glass sticky top-0 z-30 border-b border-gray-700">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-crown text-gray-900 text-lg"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold text-yellow-400">Koco Admin</h1>
+                            <p class="text-xs text-gray-400" id="current-section">Dashboard</p>
+                        </div>
                     </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="relative">
-                        <input type="text" id="search-bar" placeholder="Search orders..." class="search-bar pl-10" style="width: 300px;">
-                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    
+                    <div class="flex items-center space-x-3">
+                        <div class="text-right hidden sm:block">
+                            <p class="text-sm font-medium text-white" id="admin-name">Admin</p>
+                            <p class="text-xs text-gray-400" id="admin-email">admin@example.com</p>
+                        </div>
+                        <img id="admin-avatar" class="w-10 h-10 rounded-full border-2 border-yellow-400" src="" alt="Admin">
+                        <button onclick="signOut()" class="text-red-400 hover:text-red-300 transition-colors">
+                            <i class="fas fa-sign-out-alt text-lg"></i>
+                        </button>
                     </div>
-                    <button onclick="refreshData()" class="btn-secondary">
-                        <i class="fas fa-refresh mr-2"></i>
-                        Refresh
-                    </button>
                 </div>
             </div>
         </header>
 
-        <!-- Dashboard Section -->
-        <section id="dashboard-section" class="p-6 hidden">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div class="stats-card">
-                    <div class="text-3xl font-bold text-yellow-400 mb-2" id="total-orders">0</div>
-                    <div class="text-gray-400">Total Orders</div>
+        <!-- Quick Stats -->
+        <section class="container mx-auto px-4 py-6">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="glass rounded-2xl p-4 text-center">
+                    <div class="text-3xl font-bold text-yellow-400 mb-1" id="total-orders">-</div>
+                    <div class="text-sm text-gray-400">Total Orders</div>
                 </div>
-                <div class="stats-card">
-                    <div class="text-3xl font-bold text-green-400 mb-2" id="total-revenue">$0</div>
-                    <div class="text-gray-400">Total Revenue</div>
+                <div class="glass rounded-2xl p-4 text-center">
+                    <div class="text-3xl font-bold text-green-400 mb-1" id="total-revenue">$-</div>
+                    <div class="text-sm text-gray-400">Revenue</div>
                 </div>
-                <div class="stats-card">
-                    <div class="text-3xl font-bold text-blue-400 mb-2" id="pending-orders">0</div>
-                    <div class="text-gray-400">Pending Orders</div>
+                <div class="glass rounded-2xl p-4 text-center">
+                    <div class="text-3xl font-bold text-blue-400 mb-1" id="pending-orders">-</div>
+                    <div class="text-sm text-gray-400">Pending</div>
                 </div>
-                <div class="stats-card">
-                    <div class="text-3xl font-bold text-purple-400 mb-2" id="total-customers">0</div>
-                    <div class="text-gray-400">Customers</div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="glass-effect rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-yellow-400 mb-4">Revenue Chart</h3>
-                    <div class="chart-container">
-                        <canvas id="revenueChart"></canvas>
-                    </div>
-                </div>
-                <div class="glass-effect rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-yellow-400 mb-4">Order Status Distribution</h3>
-                    <div class="chart-container">
-                        <canvas id="statusChart"></canvas>
-                    </div>
+                <div class="glass rounded-2xl p-4 text-center">
+                    <div class="text-3xl font-bold text-purple-400 mb-1" id="total-customers">-</div>
+                    <div class="text-sm text-gray-400">Customers</div>
                 </div>
             </div>
         </section>
 
-        <!-- Orders Section -->
-        <section id="orders-section" class="p-6">
-            <!-- Filters -->
-            <div class="bg-black/20 backdrop-blur-sm rounded-xl p-4 mb-6">
-                <div class="flex flex-wrap gap-3 items-center">
-                    <span class="text-gray-400 font-medium">Filter by status:</span>
-                    <div class="flex flex-wrap gap-2">
-                        <span onclick="filterOrders('all')" class="filter-badge active" data-filter="all">All</span>
-                        <span onclick="filterOrders('pending')" class="filter-badge" data-filter="pending">Pending</span>
-                        <span onclick="filterOrders('confirmed')" class="filter-badge" data-filter="confirmed">Confirmed</span>
-                        <span onclick="filterOrders('preparing')" class="filter-badge" data-filter="preparing">Preparing</span>
-                        <span onclick="filterOrders('ready')" class="filter-badge" data-filter="ready">Ready</span>
-                        <span onclick="filterOrders('delivered')" class="filter-badge" data-filter="delivered">Delivered</span>
-                        <span onclick="filterOrders('cancelled')" class="filter-badge" data-filter="cancelled">Cancelled</span>
-                    </div>
+        <!-- Navigation Tabs -->
+        <section class="container mx-auto px-4 mb-6">
+            <div class="glass rounded-2xl p-2">
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="showTab('orders')" class="tab-button tab-active py-3 px-4 rounded-xl font-medium transition-all" data-tab="orders">
+                        <i class="fas fa-shopping-bag mr-2"></i>
+                        <span class="hidden sm:inline">Orders</span>
+                    </button>
+                    <button onclick="showTab('customers')" class="tab-button py-3 px-4 rounded-xl font-medium transition-all hover:bg-white/10" data-tab="customers">
+                        <i class="fas fa-users mr-2"></i>
+                        <span class="hidden sm:inline">Customers</span>
+                    </button>
+                    <button onclick="showTab('analytics')" class="tab-button py-3 px-4 rounded-xl font-medium transition-all hover:bg-white/10" data-tab="analytics">
+                        <i class="fas fa-chart-bar mr-2"></i>
+                        <span class="hidden sm:inline">Analytics</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Orders Tab -->
+        <section id="orders-tab" class="container mx-auto px-4 pb-20">
+            
+            <!-- Order Status Filter -->
+            <div class="glass rounded-2xl p-4 mb-6">
+                <h3 class="text-lg font-semibold text-yellow-400 mb-4">Filter by Status</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                    <button onclick="filterOrders('all')" class="filter-btn filter-active py-2 px-3 rounded-lg text-sm font-medium transition-all" data-filter="all">
+                        All (<span id="count-all">0</span>)
+                    </button>
+                    <button onclick="filterOrders('pending')" class="filter-btn py-2 px-3 rounded-lg text-sm font-medium transition-all hover:bg-white/10" data-filter="pending">
+                        Pending (<span id="count-pending">0</span>)
+                    </button>
+                    <button onclick="filterOrders('confirmed')" class="filter-btn py-2 px-3 rounded-lg text-sm font-medium transition-all hover:bg-white/10" data-filter="confirmed">
+                        Confirmed (<span id="count-confirmed">0</span>)
+                    </button>
+                    <button onclick="filterOrders('preparing')" class="filter-btn py-2 px-3 rounded-lg text-sm font-medium transition-all hover:bg-white/10" data-filter="preparing">
+                        Preparing (<span id="count-preparing">0</span>)
+                    </button>
+                    <button onclick="filterOrders('ready')" class="filter-btn py-2 px-3 rounded-lg text-sm font-medium transition-all hover:bg-white/10" data-filter="ready">
+                        Ready (<span id="count-ready">0</span>)
+                    </button>
+                    <button onclick="filterOrders('delivered')" class="filter-btn py-2 px-3 rounded-lg text-sm font-medium transition-all hover:bg-white/10" data-filter="delivered">
+                        Delivered (<span id="count-delivered">0</span>)
+                    </button>
                 </div>
             </div>
 
-            <!-- Loading State -->
-            <div id="loading-orders" class="loading">
-                <div class="spinner"></div>
-                <span class="ml-3 text-gray-400">Loading orders...</span>
+            <!-- Orders Loading -->
+            <div id="orders-loading" class="text-center py-12">
+                <div class="loading-spinner"></div>
+                <p class="text-gray-400 mt-4">Loading orders...</p>
             </div>
 
-            <!-- Orders Table -->
-            <div id="orders-container" class="glass-effect rounded-xl overflow-hidden hidden">
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Order ID</th>
-                                <th>Customer</th>
-                                <th>Items</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="orders-table-body">
-                            <!-- Orders will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
+            <!-- Orders Container -->
+            <div id="orders-container" class="hidden space-y-4">
+                <!-- Orders will be populated here -->
             </div>
 
             <!-- Empty State -->
-            <div id="empty-orders" class="text-center py-12 hidden">
+            <div id="orders-empty" class="hidden text-center py-12">
                 <div class="text-6xl text-gray-600 mb-4">📦</div>
                 <h3 class="text-xl font-semibold text-gray-400 mb-2">No Orders Found</h3>
-                <p class="text-gray-500">Orders will appear here when customers place them.</p>
+                <p class="text-gray-500">Orders will appear here when customers place them</p>
             </div>
+
         </section>
 
-        <!-- Customers Section -->
-        <section id="customers-section" class="p-6 hidden">
-            <div class="glass-effect rounded-xl p-6">
-                <h3 class="text-xl font-semibold text-yellow-400 mb-6">Customer List</h3>
-                <div id="customers-loading" class="loading">
-                    <div class="spinner"></div>
-                    <span class="ml-3 text-gray-400">Loading customers...</span>
-                </div>
-                <div id="customers-container" class="hidden">
-                    <!-- Customers will be populated here -->
-                </div>
-                <div id="empty-customers" class="text-center py-8 hidden">
-                    <div class="text-4xl mb-4">👥</div>
-                    <p class="text-gray-400">No customers found</p>
-                </div>
+        <!-- Customers Tab -->
+        <section id="customers-tab" class="container mx-auto px-4 pb-20 hidden">
+            
+            <!-- Customers Loading -->
+            <div id="customers-loading" class="text-center py-12">
+                <div class="loading-spinner"></div>
+                <p class="text-gray-400 mt-4">Loading customers...</p>
             </div>
+
+            <!-- Customers Container -->
+            <div id="customers-container" class="hidden space-y-4">
+                <!-- Customers will be populated here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="customers-empty" class="hidden text-center py-12">
+                <div class="text-4xl text-gray-600 mb-4">👥</div>
+                <h3 class="text-xl font-semibold text-gray-400 mb-2">No Customers Found</h3>
+                <p class="text-gray-500">Customer profiles will appear here</p>
+            </div>
+
         </section>
 
-        <!-- Analytics Section -->
-        <section id="analytics-section" class="p-6 hidden">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="glass-effect rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-yellow-400 mb-4">Popular Items</h3>
-                    <div class="chart-container">
-                        <canvas id="popularItemsChart"></canvas>
+        <!-- Analytics Tab -->
+        <section id="analytics-tab" class="container mx-auto px-4 pb-20 hidden">
+            
+            <div class="space-y-6">
+                
+                <!-- Quick Analytics Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass rounded-2xl p-6">
+                        <h3 class="text-lg font-semibold text-yellow-400 mb-4">Today's Orders</h3>
+                        <div class="text-3xl font-bold text-white mb-2" id="today-orders">0</div>
+                        <div class="text-sm text-gray-400">Orders placed today</div>
+                    </div>
+                    <div class="glass rounded-2xl p-6">
+                        <h3 class="text-lg font-semibold text-yellow-400 mb-4">Average Order Value</h3>
+                        <div class="text-3xl font-bold text-white mb-2" id="avg-order-value">$0</div>
+                        <div class="text-sm text-gray-400">Per order average</div>
                     </div>
                 </div>
-                <div class="glass-effect rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-yellow-400 mb-4">Monthly Trends</h3>
-                    <div class="chart-container">
-                        <canvas id="trendsChart"></canvas>
+
+                <!-- Popular Items -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-lg font-semibold text-yellow-400 mb-4">Popular Items</h3>
+                    <div id="popular-items-container" class="space-y-3">
+                        <!-- Popular items will be populated here -->
                     </div>
                 </div>
+
+                <!-- Recent Activity -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-lg font-semibold text-yellow-400 mb-4">Recent Activity</h3>
+                    <div id="recent-activity-container" class="space-y-3">
+                        <!-- Recent activity will be populated here -->
+                    </div>
+                </div>
+
             </div>
+
         </section>
-    </main>
+
+    </div>
 
     <!-- Order Details Modal -->
-    <div id="order-modal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="glass-effect rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-2xl font-bold text-yellow-400">Order Details</h3>
-                    <button onclick="closeOrderModal()" class="text-gray-400 hover:text-yellow-400 transition-colors">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
+    <div id="order-modal" class="fixed inset-0 bg-black/50 z-50 hidden">
+        <div class="flex items-end justify-center min-h-screen p-4 sm:items-center">
+            <div class="glass rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                
+                <!-- Modal Header -->
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-yellow-400">Order Details</h3>
+                        <button onclick="closeOrderModal()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
                 </div>
-                <div id="order-details-content">
-                    <!-- Order details will be populated here -->
+
+                <!-- Modal Content -->
+                <div id="order-modal-content" class="p-6">
+                    <!-- Content will be populated here -->
                 </div>
+
             </div>
         </div>
     </div>
 
-    <script src="admin.js"></script>
+    <!-- Status Update Modal -->
+    <div id="status-modal" class="fixed inset-0 bg-black/50 z-50 hidden">
+        <div class="flex items-end justify-center min-h-screen p-4 sm:items-center">
+            <div class="glass rounded-3xl w-full max-w-md">
+                
+                <!-- Modal Header -->
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-bold text-yellow-400">Update Order Status</h3>
+                        <button onclick="closeStatusModal()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Content -->
+                <div class="p-6">
+                    <div id="status-order-info" class="mb-6">
+                        <!-- Order info will be populated here -->
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <button onclick="updateOrderStatus('pending')" class="w-full py-3 px-4 bg-yellow-500 text-gray-900 rounded-xl font-medium hover:bg-yellow-400 transition-colors">
+                            <i class="fas fa-clock mr-2"></i>
+                            Mark as Pending
+                        </button>
+                        <button onclick="updateOrderStatus('confirmed')" class="w-full py-3 px-4 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-400 transition-colors">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Mark as Confirmed
+                        </button>
+                        <button onclick="updateOrderStatus('preparing')" class="w-full py-3 px-4 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-400 transition-colors">
+                            <i class="fas fa-cookie-bite mr-2"></i>
+                            Mark as Preparing
+                        </button>
+                        <button onclick="updateOrderStatus('ready')" class="w-full py-3 px-4 bg-green-500 text-white rounded-xl font-medium hover:bg-green-400 transition-colors">
+                            <i class="fas fa-box mr-2"></i>
+                            Mark as Ready
+                        </button>
+                        <button onclick="updateOrderStatus('delivered')" class="w-full py-3 px-4 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-400 transition-colors">
+                            <i class="fas fa-truck mr-2"></i>
+                            Mark as Delivered
+                        </button>
+                        <button onclick="updateOrderStatus('cancelled')" class="w-full py-3 px-4 bg-red-500 text-white rounded-xl font-medium hover:bg-red-400 transition-colors">
+                            <i class="fas fa-times-circle mr-2"></i>
+                            Mark as Cancelled
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <button onclick="refreshData()" class="fab-button" title="Refresh Data">
+        <i class="fas fa-refresh"></i>
+    </button>
+
+    <!-- Load configuration first, then admin script -->
+    <script src="config.js"></script>
+    <script src="admin-new.js"></script>
+
 </body>
 </html>
