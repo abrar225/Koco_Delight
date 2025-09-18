@@ -15,8 +15,8 @@ const ADMIN_EMAILS = window.APP_CONFIG ?
     (window.APP_CONFIG.ADMIN_EMAILS || '').split(',').map(s => s.trim()).filter(Boolean) : 
     [
         'moabrarakhunji@gmail.com',
-        'kamil1ganjii@gmail.com',
-        'admin@kocodelight.com'
+        'kamilganiji@gmail.com',
+        'kocodelight083@gmail.com'
     ];
 
 // Initialize Firebase
