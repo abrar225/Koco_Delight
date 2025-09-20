@@ -12,6 +12,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-storage-compat.js"></script>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -67,12 +68,12 @@
             color: #1F2937 !important;
         }
 
-        .order-card {
+        .order-card, .chocolate-card {
             transition: all 0.3s ease;
             cursor: pointer;
         }
 
-        .order-card:hover {
+        .order-card:hover, .chocolate-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
@@ -97,6 +98,24 @@
 
         .fab-button:hover {
             transform: scale(1.1);
+        }
+
+        .image-preview {
+            max-width: 200px;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .drag-drop-zone {
+            border: 2px dashed #F59E0B;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .drag-drop-zone.drag-over {
+            border-color: #FCD34D;
+            background: rgba(252, 211, 77, 0.1);
         }
     </style>
 </head>
@@ -178,8 +197,8 @@
                     <div class="text-sm text-gray-400">Pending</div>
                 </div>
                 <div class="glass rounded-2xl p-4 text-center">
-                    <div class="text-3xl font-bold text-purple-400 mb-1" id="total-customers">0</div>
-                    <div class="text-sm text-gray-400">Customers</div>
+                    <div class="text-3xl font-bold text-purple-400 mb-1" id="total-chocolates">0</div>
+                    <div class="text-sm text-gray-400">Chocolates</div>
                 </div>
             </div>
         </section>
@@ -187,10 +206,14 @@
         <!-- Navigation Tabs -->
         <section class="container mx-auto px-4 mb-6">
             <div class="glass rounded-2xl p-2">
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-4 gap-2">
                     <button onclick="showTab('orders')" class="tab-button tab-active py-3 px-4 rounded-xl font-medium transition-all" data-tab="orders">
                         <i class="fas fa-shopping-bag mr-2"></i>
                         <span class="hidden sm:inline">Orders</span>
+                    </button>
+                    <button onclick="showTab('chocolates')" class="tab-button py-3 px-4 rounded-xl font-medium transition-all hover:bg-white/10" data-tab="chocolates">
+                        <i class="fas fa-cookie-bite mr-2"></i>
+                        <span class="hidden sm:inline">Chocolates</span>
                     </button>
                     <button onclick="showTab('customers')" class="tab-button py-3 px-4 rounded-xl font-medium transition-all hover:bg-white/10" data-tab="customers">
                         <i class="fas fa-users mr-2"></i>
@@ -248,6 +271,40 @@
                 <div class="text-6xl text-gray-600 mb-4">📦</div>
                 <h3 class="text-xl font-semibold text-gray-400 mb-2">No Orders Found</h3>
                 <p class="text-gray-500">Orders will appear here when customers place them</p>
+            </div>
+
+        </section>
+
+        <!-- Chocolates Tab -->
+        <section id="chocolates-tab" class="container mx-auto px-4 pb-20 hidden">
+            
+            <!-- Add New Chocolate Button -->
+            <div class="mb-6">
+                <button onclick="showAddChocolateModal()" class="bg-gradient-to-r from-yellow-400 to-yellow-600 text-gray-900 font-bold py-3 px-6 rounded-xl hover:scale-105 transform transition-all duration-300">
+                    <i class="fas fa-plus mr-2"></i>
+                    Add New Chocolate
+                </button>
+            </div>
+
+            <!-- Chocolates Loading -->
+            <div id="chocolates-loading" class="text-center py-12">
+                <div class="loading-spinner"></div>
+                <p class="text-gray-400 mt-4">Loading chocolates...</p>
+            </div>
+
+            <!-- Chocolates Container -->
+            <div id="chocolates-container" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Chocolates will be populated here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="chocolates-empty" class="hidden text-center py-12">
+                <div class="text-6xl text-gray-600 mb-4">🍫</div>
+                <h3 class="text-xl font-semibold text-gray-400 mb-2">No Chocolates Found</h3>
+                <p class="text-gray-500">Add chocolates to your inventory</p>
+                <button onclick="showAddChocolateModal()" class="mt-4 bg-yellow-500 text-gray-900 font-bold py-2 px-4 rounded-xl hover:bg-yellow-400">
+                    Add First Chocolate
+                </button>
             </div>
 
         </section>
@@ -314,6 +371,120 @@
 
         </section>
 
+    </div>
+
+    <!-- Add/Edit Chocolate Modal -->
+    <div id="chocolate-modal" class="fixed inset-0 bg-black/50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="glass rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                
+                <!-- Modal Header -->
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-yellow-400" id="chocolate-modal-title">Add New Chocolate</h3>
+                        <button onclick="closeChocolateModal()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Content -->
+                <div class="p-6">
+                    <form id="chocolate-form" class="space-y-6">
+                        
+                        <!-- Image Upload -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Chocolate Image</label>
+                            <div id="image-drop-zone" class="drag-drop-zone p-8 text-center">
+                                <div id="image-upload-area">
+                                    <i class="fas fa-cloud-upload-alt text-4xl text-yellow-400 mb-4"></i>
+                                    <p class="text-gray-300 mb-2">Drag & drop an image here, or click to select</p>
+                                    <input type="file" id="chocolate-image" accept="image/*" class="hidden">
+                                    <button type="button" onclick="document.getElementById('chocolate-image').click()" class="bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-yellow-400">
+                                        Choose Image
+                                    </button>
+                                </div>
+                                <div id="image-preview-area" class="hidden">
+                                    <img id="image-preview" class="image-preview mx-auto mb-4" src="" alt="Preview">
+                                    <button type="button" onclick="removeImage()" class="bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-400">
+                                        Remove Image
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <!-- Basic Info -->
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="chocolate-name" class="block text-sm font-medium text-gray-300 mb-2">Chocolate Name *</label>
+                                    <input type="text" id="chocolate-name" required class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent">
+                                </div>
+
+                                <div>
+                                    <label for="chocolate-price" class="block text-sm font-medium text-gray-300 mb-2">Price ($) *</label>
+                                    <input type="number" id="chocolate-price" step="0.01" min="0" required class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent">
+                                </div>
+
+                                <div>
+                                    <label for="chocolate-emoji" class="block text-sm font-medium text-gray-300 mb-2">Emoji *</label>
+                                    <input type="text" id="chocolate-emoji" placeholder="🍫" maxlength="2" required class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-center text-2xl">
+                                </div>
+                            </div>
+
+                            <!-- Details -->
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="chocolate-flavor" class="block text-sm font-medium text-gray-300 mb-2">Flavor *</label>
+                                    <input type="text" id="chocolate-flavor" placeholder="e.g., Dark Chocolate" required class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent">
+                                </div>
+
+                                <div>
+                                    <label for="chocolate-category" class="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                                    <select id="chocolate-category" class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent">
+                                        <option value="premium">Premium</option>
+                                        <option value="classic">Classic</option>
+                                        <option value="seasonal">Seasonal</option>
+                                        <option value="limited">Limited Edition</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="chocolate-status" class="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                                    <select id="chocolate-status" class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent">
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="out-of-stock">Out of Stock</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Description -->
+                        <div>
+                            <label for="chocolate-description" class="block text-sm font-medium text-gray-300 mb-2">Description *</label>
+                            <textarea id="chocolate-description" rows="3" required placeholder="Describe your chocolate..." class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-yellow-400 focus:border-transparent resize-none"></textarea>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="flex space-x-4 pt-4">
+                            <button type="submit" id="chocolate-submit-btn" class="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-gray-900 font-bold py-3 rounded-xl hover:scale-105 transform transition-all duration-300">
+                                <i class="fas fa-save mr-2"></i>
+                                <span id="chocolate-submit-text">Add Chocolate</span>
+                            </button>
+                            <button type="button" onclick="closeChocolateModal()" class="flex-1 py-3 px-4 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition-colors">
+                                <i class="fas fa-times mr-2"></i>
+                                Cancel
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+
+            </div>
+        </div>
     </div>
 
     <!-- Order Details Modal -->
@@ -393,13 +564,49 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="fixed inset-0 bg-black/50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="glass rounded-3xl w-full max-w-md">
+                
+                <!-- Modal Header -->
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-bold text-red-400">Delete Chocolate</h3>
+                        <button onclick="closeDeleteModal()" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Content -->
+                <div class="p-6 text-center">
+                    <div class="text-6xl text-red-400 mb-4">⚠️</div>
+                    <h4 class="text-lg font-bold text-white mb-2">Are you sure?</h4>
+                    <p class="text-gray-400 mb-6" id="delete-chocolate-info">This action cannot be undone.</p>
+                    
+                    <div class="flex space-x-3">
+                        <button onclick="confirmDeleteChocolate()" class="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-400 transition-colors">
+                            <i class="fas fa-trash mr-2"></i>
+                            Yes, Delete
+                        </button>
+                        <button onclick="closeDeleteModal()" class="flex-1 py-3 px-4 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
     <!-- Floating Action Button -->
     <button onclick="refreshData()" class="fab-button" title="Refresh Data">
         <i class="fas fa-refresh"></i>
     </button>
 
     <script>
-        // Firebase configuration (direct configuration for now)
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBs-7nJ3-L2IISbkB_B2PB6E_1y9ZmImUw",
             authDomain: "koco-delight.firebaseapp.com",
@@ -410,7 +617,7 @@
             measurementId: "G-QZRMX4WN3G"
         };
 
-        // Admin emails - replace with your email
+        // Admin emails
         const ADMIN_EMAILS = [
             'moabrarakhunji@gmail.com',
             'kamil1ganjii@gmail.com',
@@ -421,13 +628,17 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
+        const storage = firebase.storage();
 
         // Global Variables
         let currentAdmin = null;
         let allOrders = [];
         let allCustomers = [];
+        let allChocolates = [];
         let currentFilter = 'all';
         let currentOrderId = null;
+        let currentChocolateId = null;
+        let currentImageFile = null;
 
         console.log('🚀 Koco Admin Panel Loading...');
         console.log('📧 Admin emails configured:', ADMIN_EMAILS);
@@ -501,6 +712,7 @@
                 currentAdmin = null;
                 allOrders = [];
                 allCustomers = [];
+                allChocolates = [];
                 showNotification('Signed out successfully', 'success');
             }).catch(error => {
                 console.error('Sign-out error:', error);
@@ -515,7 +727,8 @@
             try {
                 await Promise.all([
                     loadOrders(),
-                    loadCustomers()
+                    loadCustomers(),
+                    loadChocolates()
                 ]);
                 
                 updateStats();
@@ -617,7 +830,370 @@
             }
         }
 
-        // Rendering Functions
+        async function loadChocolates() {
+            console.log('🍫 Loading chocolates...');
+            
+            const chocolatesLoading = document.getElementById('chocolates-loading');
+            const chocolatesContainer = document.getElementById('chocolates-container');
+            const chocolatesEmpty = document.getElementById('chocolates-empty');
+            
+            chocolatesLoading.classList.remove('hidden');
+            chocolatesContainer.classList.add('hidden');
+            chocolatesEmpty.classList.add('hidden');
+            
+            try {
+                const snapshot = await db.collection('chocolates')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                allChocolates = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    data.id = doc.id;
+                    allChocolates.push(data);
+                });
+                
+                console.log(`✅ Loaded ${allChocolates.length} chocolates`);
+                
+                chocolatesLoading.classList.add('hidden');
+                
+                if (allChocolates.length === 0) {
+                    chocolatesEmpty.classList.remove('hidden');
+                } else {
+                    chocolatesContainer.classList.remove('hidden');
+                    renderChocolates(allChocolates);
+                }
+                
+            } catch (error) {
+                console.error('❌ Error loading chocolates:', error);
+                chocolatesLoading.classList.add('hidden');
+                chocolatesEmpty.classList.remove('hidden');
+                document.getElementById('chocolates-empty').innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-6xl text-red-400 mb-4">⚠️</div>
+                        <h3 class="text-xl font-semibold text-red-400 mb-2">Failed to Load Chocolates</h3>
+                        <p class="text-gray-500 mb-4">Error: ${error.message}</p>
+                        <button onclick="loadChocolates()" class="bg-yellow-500 text-gray-900 py-2 px-4 rounded-xl font-bold hover:bg-yellow-400">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Chocolate Management Functions
+        function renderChocolates(chocolates) {
+            const container = document.getElementById('chocolates-container');
+            if (!container || !chocolates) return;
+            
+            container.innerHTML = chocolates.map(chocolate => {
+                const createdAt = chocolate.createdAt ? chocolate.createdAt.toDate() : new Date();
+                const status = chocolate.status || 'active';
+                const statusColor = status === 'active' ? 'text-green-400' : 
+                                  status === 'inactive' ? 'text-gray-400' : 'text-red-400';
+                
+                return `
+                    <div class="chocolate-card glass rounded-2xl p-4" onclick="editChocolate('${chocolate.id}')">
+                        <div class="relative mb-4">
+                            <img src="${chocolate.imageUrl || 'https://placehold.co/200x200/1A1208/D5CEA3?text=' + (chocolate.emoji || '🍫')}" 
+                                 alt="${chocolate.name}" 
+                                 class="w-full h-40 object-cover rounded-lg">
+                            <div class="absolute top-2 right-2">
+                                <span class="text-2xl bg-white/80 rounded-full p-1">${chocolate.emoji || '🍫'}</span>
+                            </div>
+                            <div class="absolute bottom-2 left-2">
+                                <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColor} bg-black/50">
+                                    ${status.charAt(0).toUpperCase() + status.slice(1)}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <h3 class="font-bold text-lg text-white">${chocolate.name}</h3>
+                            <p class="text-gray-400 text-sm">${chocolate.flavor}</p>
+                            <p class="text-gray-500 text-xs line-clamp-2">${chocolate.description}</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-2xl font-bold text-green-400">$${chocolate.price.toFixed(2)}</span>
+                                <span class="text-xs text-gray-400">${chocolate.category}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="event.stopPropagation(); editChocolate('${chocolate.id}')" class="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg font-medium text-sm hover:bg-blue-400 transition-colors">
+                                <i class="fas fa-edit mr-1"></i>
+                                Edit
+                            </button>
+                            <button onclick="event.stopPropagation(); deleteChocolate('${chocolate.id}', '${chocolate.name}')" class="flex-1 py-2 px-3 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-400 transition-colors">
+                                <i class="fas fa-trash mr-1"></i>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showAddChocolateModal() {
+            currentChocolateId = null;
+            currentImageFile = null;
+            
+            document.getElementById('chocolate-modal-title').textContent = 'Add New Chocolate';
+            document.getElementById('chocolate-submit-text').textContent = 'Add Chocolate';
+            
+            // Reset form
+            document.getElementById('chocolate-form').reset();
+            resetImageUpload();
+            
+            document.getElementById('chocolate-modal').classList.remove('hidden');
+        }
+
+        function editChocolate(chocolateId) {
+            const chocolate = allChocolates.find(c => c.id === chocolateId);
+            if (!chocolate) return;
+            
+            currentChocolateId = chocolateId;
+            currentImageFile = null;
+            
+            document.getElementById('chocolate-modal-title').textContent = 'Edit Chocolate';
+            document.getElementById('chocolate-submit-text').textContent = 'Update Chocolate';
+            
+            // Populate form with existing data
+            document.getElementById('chocolate-name').value = chocolate.name;
+            document.getElementById('chocolate-price').value = chocolate.price;
+            document.getElementById('chocolate-emoji').value = chocolate.emoji;
+            document.getElementById('chocolate-flavor').value = chocolate.flavor;
+            document.getElementById('chocolate-category').value = chocolate.category || 'premium';
+            document.getElementById('chocolate-status').value = chocolate.status || 'active';
+            document.getElementById('chocolate-description').value = chocolate.description;
+            
+            // Show existing image if available
+            if (chocolate.imageUrl) {
+                showImagePreview(chocolate.imageUrl);
+            } else {
+                resetImageUpload();
+            }
+            
+            document.getElementById('chocolate-modal').classList.remove('hidden');
+        }
+
+        function deleteChocolate(chocolateId, chocolateName) {
+            currentChocolateId = chocolateId;
+            document.getElementById('delete-chocolate-info').textContent = 
+                `This will permanently delete "${chocolateName}" from your inventory.`;
+            document.getElementById('delete-modal').classList.remove('hidden');
+        }
+
+        function closeChocolateModal() {
+            document.getElementById('chocolate-modal').classList.add('hidden');
+            currentChocolateId = null;
+            currentImageFile = null;
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('delete-modal').classList.add('hidden');
+            currentChocolateId = null;
+        }
+
+        async function confirmDeleteChocolate() {
+            if (!currentChocolateId) return;
+            
+            try {
+                const chocolate = allChocolates.find(c => c.id === currentChocolateId);
+                
+                // Delete image from storage if exists
+                if (chocolate && chocolate.imageUrl && chocolate.imageUrl.includes('firebase')) {
+                    try {
+                        const imageRef = storage.refFromURL(chocolate.imageUrl);
+                        await imageRef.delete();
+                    } catch (error) {
+                        console.warn('Could not delete image from storage:', error);
+                    }
+                }
+                
+                // Delete document from Firestore
+                await db.collection('chocolates').doc(currentChocolateId).delete();
+                
+                // Remove from local array
+                allChocolates = allChocolates.filter(c => c.id !== currentChocolateId);
+                
+                closeDeleteModal();
+                renderChocolates(allChocolates);
+                updateStats();
+                
+                showNotification('Chocolate deleted successfully!', 'success');
+                
+            } catch (error) {
+                console.error('Error deleting chocolate:', error);
+                showNotification('Failed to delete chocolate', 'error');
+            }
+        }
+
+        // Image Upload Functions
+        function setupImageUpload() {
+            const dropZone = document.getElementById('image-drop-zone');
+            const fileInput = document.getElementById('chocolate-image');
+            
+            // Drag and drop events
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleImageFile(files[0]);
+                }
+            });
+            
+            // File input change
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleImageFile(e.target.files[0]);
+                }
+            });
+        }
+
+        function handleImageFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showNotification('Please select an image file', 'error');
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                showNotification('Image size must be less than 5MB', 'error');
+                return;
+            }
+            
+            currentImageFile = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                showImagePreview(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showImagePreview(imageSrc) {
+            document.getElementById('image-upload-area').classList.add('hidden');
+            document.getElementById('image-preview-area').classList.remove('hidden');
+            document.getElementById('image-preview').src = imageSrc;
+        }
+
+        function resetImageUpload() {
+            document.getElementById('image-upload-area').classList.remove('hidden');
+            document.getElementById('image-preview-area').classList.add('hidden');
+            document.getElementById('chocolate-image').value = '';
+            currentImageFile = null;
+        }
+
+        function removeImage() {
+            resetImageUpload();
+        }
+
+        // Form Submission
+        async function handleChocolateFormSubmit(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('chocolate-submit-btn');
+            const originalText = submitBtn.innerHTML;
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+            
+            try {
+                const formData = {
+                    name: document.getElementById('chocolate-name').value.trim(),
+                    price: parseFloat(document.getElementById('chocolate-price').value),
+                    emoji: document.getElementById('chocolate-emoji').value.trim(),
+                    flavor: document.getElementById('chocolate-flavor').value.trim(),
+                    category: document.getElementById('chocolate-category').value,
+                    status: document.getElementById('chocolate-status').value,
+                    description: document.getElementById('chocolate-description').value.trim(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                // Upload image if new file selected
+                if (currentImageFile) {
+                    const imageRef = storage.ref(`chocolates/${Date.now()}_${currentImageFile.name}`);
+                    const snapshot = await imageRef.put(currentImageFile);
+                    formData.imageUrl = await snapshot.ref.getDownloadURL();
+                }
+                
+                if (currentChocolateId) {
+                    // Update existing chocolate
+                    await db.collection('chocolates').doc(currentChocolateId).update(formData);
+                    
+                    // Update local array
+                    const index = allChocolates.findIndex(c => c.id === currentChocolateId);
+                    if (index !== -1) {
+                        allChocolates[index] = { ...allChocolates[index], ...formData };
+                    }
+                    
+                    showNotification('Chocolate updated successfully!', 'success');
+                } else {
+                    // Add new chocolate
+                    formData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    
+                    const docRef = await db.collection('chocolates').add(formData);
+                    
+                    // Add to local array
+                    allChocolates.unshift({ id: docRef.id, ...formData, createdAt: new Date() });
+                    
+                    showNotification('Chocolate added successfully!', 'success');
+                }
+                
+                closeChocolateModal();
+                renderChocolates(allChocolates);
+                updateStats();
+                
+                // Update main website chocolates data
+                await updateWebsiteChocolates();
+                
+            } catch (error) {
+                console.error('Error saving chocolate:', error);
+                showNotification('Failed to save chocolate', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        }
+
+        // Update website chocolates collection for the main site
+        async function updateWebsiteChocolates() {
+            try {
+                // Create/update a chocolates-data document that the main website can read
+                const websiteChocolates = allChocolates
+                    .filter(c => c.status === 'active')
+                    .map(c => ({
+                        id: c.id,
+                        name: c.name,
+                        price: c.price,
+                        emoji: c.emoji,
+                        flavor: c.flavor,
+                        description: c.description,
+                        imageUrl: c.imageUrl,
+                        category: c.category
+                    }));
+                
+                await db.collection('website-data').doc('chocolates').set({
+                    chocolates: websiteChocolates,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                console.log('✅ Website chocolates data updated');
+            } catch (error) {
+                console.error('❌ Error updating website chocolates:', error);
+            }
+        }
+
+        // Rendering Functions (Orders, Customers - same as before)
         function renderOrders(orders) {
             const container = document.getElementById('orders-container');
             if (!container || !orders) return;
@@ -729,12 +1305,12 @@
             const totalOrders = allOrders.length;
             const totalRevenue = allOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
             const pendingOrders = allOrders.filter(order => (order.status || 'pending') === 'pending').length;
-            const totalCustomers = allCustomers.length;
+            const totalChocolates = allChocolates.length;
             
             document.getElementById('total-orders').textContent = totalOrders;
             document.getElementById('total-revenue').textContent = `$${totalRevenue.toFixed(0)}`;
             document.getElementById('pending-orders').textContent = pendingOrders;
-            document.getElementById('total-customers').textContent = totalCustomers;
+            document.getElementById('total-chocolates').textContent = totalChocolates;
             
             // Analytics tab stats
             const today = new Date().toDateString();
@@ -881,6 +1457,7 @@
             
             // Show/hide tab content
             document.getElementById('orders-tab').classList.add('hidden');
+            document.getElementById('chocolates-tab').classList.add('hidden');
             document.getElementById('customers-tab').classList.add('hidden');
             document.getElementById('analytics-tab').classList.add('hidden');
             
@@ -907,7 +1484,7 @@
             renderOrders(allOrders);
         }
 
-        // Order Details Modal
+        // Order Details Modal (same as before)
         function showOrderDetails(orderId) {
             const order = allOrders.find(o => o.id === orderId);
             if (!order) return;
@@ -1118,7 +1695,16 @@
             }, 4000);
         }
 
-        console.log('✅ Admin panel script loaded');
+        // Initialize everything when DOM loads
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('✅ Admin panel script loaded');
+            
+            // Setup image upload functionality
+            setupImageUpload();
+            
+            // Setup form submission
+            document.getElementById('chocolate-form').addEventListener('submit', handleChocolateFormSubmit);
+        });
     </script>
 
 </body>
