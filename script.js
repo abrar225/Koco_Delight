@@ -1,5 +1,6 @@
-// Firebase Configuration
-const firebaseConfig = {
+// Get Firebase configuration from environment variables or fallback
+const firebaseConfig = window.APP_CONFIG ? window.APP_CONFIG.FIREBASE : {
+    // Fallback for direct access
     apiKey: "AIzaSyBs-7nJ3-L2IISbkB_B2PB6E_1y9ZmImUw",
     authDomain: "koco-delight.firebaseapp.com",
     projectId: "koco-delight",
@@ -35,85 +36,136 @@ let userLocation = null;
 let userPhone = null;
 let currentUser = null;
 let userAddresses = [];
-
-// Chocolate Data
-const chocolateData = [
-    {
-        id: 'heart',
-        name: 'Velvet Heart',
-        price: 3.50,
-        imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=💖',
-        flavor: 'Dark Chocolate',
-        emoji: '💖',
-        description: 'Silky smooth dark chocolate with raspberry center'
-    },
-    {
-        id: 'caramel',
-        name: 'Caramel Bite', 
-        price: 4.00,
-        imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🍯',
-        flavor: 'Salted Caramel',
-        emoji: '🍯',
-        description: 'Rich milk chocolate with salted caramel filling'
-    },
-    {
-        id: 'truffle',
-        name: 'Hazelnut Truffle',
-        price: 4.50,
-        imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🌰',
-        flavor: 'Hazelnut',
-        emoji: '🌰',
-        description: 'Roasted hazelnuts in premium dark chocolate'
-    },
-    {
-        id: 'dome',
-        name: 'Cocoa Dome',
-        price: 3.75,
-        imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🍫',
-        flavor: 'Milk Chocolate',
-        emoji: '🍫',
-        description: 'Pure Belgian cocoa in elegant dome shape'
-    },
-    {
-        id: 'gem', 
-        name: 'Raspberry Gem',
-        price: 3.60,
-        imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=💎',
-        flavor: 'Raspberry',
-        emoji: '💎',
-        description: 'White chocolate with dried raspberry pieces'
-    },
-    {
-        id: 'swirl',
-        name: 'Mint Swirl',
-        price: 3.80,
-        imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🌿',
-        flavor: 'Mint',
-        emoji: '🌿',
-        description: 'Cool mint cream in dark chocolate shell'
-    },
-    {
-        id: 'almond',
-        name: 'Almond Cluster', 
-        price: 4.20,
-        imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🥜',
-        flavor: 'Almond',
-        emoji: '🥜',
-        description: 'Whole almonds covered in milk chocolate'
-    },
-    {
-        id: 'orange',
-        name: 'Orange Slice',
-        price: 3.90,
-        imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🍊',
-        flavor: 'Orange',
-        emoji: '🍊',
-        description: 'Candied orange peel in dark chocolate'
-    }
-];
+let chocolateData = []; // Will be loaded from database
 
 // Initialize page immediately with fallback styles
 document.documentElement.classList.add('no-js');
+
+// Load chocolates from database
+async function loadChocolatesFromDatabase() {
+    console.log('🍫 Loading chocolates from database...');
+    
+    try {
+        // Try to get chocolates from the website-data collection first
+        const websiteDataDoc = await db.collection('website-data').doc('chocolates').get();
+        
+        if (websiteDataDoc.exists) {
+            const data = websiteDataDoc.data();
+            if (data.chocolates && data.chocolates.length > 0) {
+                chocolateData = data.chocolates;
+                console.log(`✅ Loaded ${chocolateData.length} chocolates from website-data`);
+                populateChocolatesGrid();
+                return;
+            }
+        }
+        
+        // Fallback: Load directly from chocolates collection
+        const snapshot = await db.collection('chocolates')
+            .where('status', '==', 'active')
+            .orderBy('name')
+            .get();
+        
+        chocolateData = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            chocolateData.push({
+                id: doc.id,
+                name: data.name,
+                price: data.price,
+                imgSrc: data.imageUrl || `https://placehold.co/200x200/1A1208/D5CEA3?text=${data.emoji || '🍫'}`,
+                flavor: data.flavor,
+                emoji: data.emoji || '🍫',
+                description: data.description,
+                category: data.category || 'premium'
+            });
+        });
+        
+        console.log(`✅ Loaded ${chocolateData.length} chocolates from chocolates collection`);
+        populateChocolatesGrid();
+        
+    } catch (error) {
+        console.error('❌ Error loading chocolates from database:', error);
+        
+        // Use fallback chocolates if database fails
+        chocolateData = [
+            {
+                id: 'heart',
+                name: 'Velvet Heart',
+                price: 3.50,
+                imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=💖',
+                flavor: 'Dark Chocolate',
+                emoji: '💖',
+                description: 'Silky smooth dark chocolate with raspberry center'
+            },
+            {
+                id: 'caramel',
+                name: 'Caramel Bite', 
+                price: 4.00,
+                imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🍯',
+                flavor: 'Salted Caramel',
+                emoji: '🍯',
+                description: 'Rich milk chocolate with salted caramel filling'
+            },
+            {
+                id: 'truffle',
+                name: 'Hazelnut Truffle',
+                price: 4.50,
+                imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🌰',
+                flavor: 'Hazelnut',
+                emoji: '🌰',
+                description: 'Roasted hazelnuts in premium dark chocolate'
+            },
+            {
+                id: 'dome',
+                name: 'Cocoa Dome',
+                price: 3.75,
+                imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🍫',
+                flavor: 'Milk Chocolate',
+                emoji: '🍫',
+                description: 'Pure Belgian cocoa in elegant dome shape'
+            },
+            {
+                id: 'gem', 
+                name: 'Raspberry Gem',
+                price: 3.60,
+                imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=💎',
+                flavor: 'Raspberry',
+                emoji: '💎',
+                description: 'White chocolate with dried raspberry pieces'
+            },
+            {
+                id: 'swirl',
+                name: 'Mint Swirl',
+                price: 3.80,
+                imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🌿',
+                flavor: 'Mint',
+                emoji: '🌿',
+                description: 'Cool mint cream in dark chocolate shell'
+            },
+            {
+                id: 'almond',
+                name: 'Almond Cluster', 
+                price: 4.20,
+                imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🥜',
+                flavor: 'Almond',
+                emoji: '🥜',
+                description: 'Whole almonds covered in milk chocolate'
+            },
+            {
+                id: 'orange',
+                name: 'Orange Slice',
+                price: 3.90,
+                imgSrc: 'https://placehold.co/200x200/1A1208/D5CEA3?text=🍊',
+                flavor: 'Orange',
+                emoji: '🍊',
+                description: 'Candied orange peel in dark chocolate'
+            }
+        ];
+        
+        console.log('🔄 Using fallback chocolates');
+        populateChocolatesGrid();
+    }
+}
 
 // Authentication State Management with Enhanced User Data
 auth.onAuthStateChanged(user => {
@@ -756,10 +808,10 @@ function initAnimations() {
     }
 }
 
-// Populate chocolates grid with small cards
+// Populate chocolates grid with data from database
 function populateChocolatesGrid() {
     const grid = document.getElementById('chocolates-grid');
-    if (!grid) return;
+    if (!grid || !chocolateData || chocolateData.length === 0) return;
     
     grid.innerHTML = '';
     
@@ -767,7 +819,13 @@ function populateChocolatesGrid() {
         const card = document.createElement('div');
         card.className = 'chocolate-card';
         card.innerHTML = `
-            <div class="chocolate-emoji">${chocolate.emoji}</div>
+            <div class="chocolate-image-container">
+                ${chocolate.imgSrc && chocolate.imgSrc !== `https://placehold.co/200x200/1A1208/D5CEA3?text=${chocolate.emoji}` ? 
+                    `<img src="${chocolate.imgSrc}" alt="${chocolate.name}" class="chocolate-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                     <div class="chocolate-emoji-fallback" style="display:none;">${chocolate.emoji}</div>` :
+                    `<div class="chocolate-emoji">${chocolate.emoji}</div>`
+                }
+            </div>
             <h3 class="chocolate-title">${chocolate.name}</h3>
             <p class="chocolate-description">${chocolate.description}</p>
             <div class="chocolate-price">$${chocolate.price.toFixed(2)}</div>
@@ -793,6 +851,8 @@ function populateChocolatesGrid() {
             );
         }
     });
+    
+    console.log(`✅ Populated grid with ${chocolateData.length} chocolates`);
 }
 
 // Chocolate Customization System
@@ -805,33 +865,44 @@ function initCustomizeAndOrder() {
     
     if (!optionsContainer || !boxContainer) return;
     
-    // Populate chocolate options
-    chocolateData.forEach(choco => {
-        const div = document.createElement('div');
-        div.className = 'text-center p-3 rounded-xl glass-effect transition-all hover:scale-105 cursor-pointer';
-        div.draggable = true;
-        div.innerHTML = `
-            <div class="text-2xl mb-2">${choco.emoji}</div>
-            <p class="text-sm font-medium text-gold">${choco.name}</p>
-            <p class="text-xs font-bold text-bronze">$${choco.price.toFixed(2)}</p>
-        `;
+    // Wait for chocolates to load, then populate options
+    const populateOptions = () => {
+        if (chocolateData.length === 0) {
+            setTimeout(populateOptions, 100);
+            return;
+        }
         
-        div.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', JSON.stringify(choco));
-        });
+        optionsContainer.innerHTML = '';
         
-        div.addEventListener('click', () => {
-            if (boxItems.length >= 12) {
-                showCustomAlert('Your box is full! (Max 12 pieces)', 'error');
-                return;
-            }
+        chocolateData.forEach(choco => {
+            const div = document.createElement('div');
+            div.className = 'text-center p-3 rounded-xl glass-effect transition-all hover:scale-105 cursor-pointer';
+            div.draggable = true;
+            div.innerHTML = `
+                <div class="text-2xl mb-2">${choco.emoji}</div>
+                <p class="text-sm font-medium text-gold">${choco.name}</p>
+                <p class="text-xs font-bold text-bronze">$${choco.price.toFixed(2)}</p>
+            `;
             
-            boxItems.push(choco);
-            updateBox();
+            div.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', JSON.stringify(choco));
+            });
+            
+            div.addEventListener('click', () => {
+                if (boxItems.length >= 12) {
+                    showCustomAlert('Your box is full! (Max 12 pieces)', 'error');
+                    return;
+                }
+                
+                boxItems.push(choco);
+                updateBox();
+            });
+            
+            optionsContainer.appendChild(div);
         });
-        
-        optionsContainer.appendChild(div);
-    });
+    };
+    
+    populateOptions();
     
     // Box drop functionality
     boxContainer.addEventListener('dragover', (e) => e.preventDefault());
@@ -1337,7 +1408,10 @@ function initPage() {
     
     // Initialize other systems
     initCustomCursor();
-    populateChocolatesGrid();
+    
+    // Load chocolates from database and populate grid
+    loadChocolatesFromDatabase();
+    
     initCustomizeAndOrder();
     initOrderSystem();
     
