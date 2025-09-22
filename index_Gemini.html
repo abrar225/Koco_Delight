@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koco Delight - Artisan Chocolate Experiences</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- GSAP Animation Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    
+    <!-- Three.js 3D Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-dark: #1A120B;
+            --primary-medium: #3C2A21;
+            --primary-light: #D5CEA3;
+            --accent-gold: #E5E5CB;
+            --accent-copper: #A27B5C;
+            --accent-bronze: #785A3E;
+        }
+
+        body {
+            background-color: var(--primary-dark);
+            color: var(--primary-light);
+            font-family: 'Inter', sans-serif;
+            cursor: none;
+        }
+        
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .font-cormorant { font-family: 'Cormorant Garamond', serif; }
+        .bg-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D5CEA3' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        #navbar.scrolled {
+            background-color: rgba(26, 18, 11, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(229, 229, 203, 0.1);
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-copper) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glass-effect {
+            background: rgba(60, 42, 33, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(213, 206, 163, 0.1);
+        }
+        .btn-gold { background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-copper) 100%); color: var(--primary-dark); }
+        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(229, 229, 203, 0.1); }
+        .btn-copper { background: linear-gradient(135deg, var(--accent-copper) 0%, var(--accent-bronze) 100%); color: var(--primary-light); }
+        .btn-copper:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(162, 123, 92, 0.1); }
+        .custom-cursor-dot { position: fixed; width: 8px; height: 8px; background-color: var(--accent-gold); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); z-index: 10001; }
+        .custom-cursor-circle { position: fixed; width: 40px; height: 40px; border: 1.5px solid var(--accent-gold); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); z-index: 10001; transition: all 0.2s ease-out; }
+        .cursor-grow { transform: translate(-50%, -50%) scale(1.5); border-color: var(--accent-copper); background: rgba(213, 206, 163, 0.1); }
+        a, button { cursor: none; }
+        .loader { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: radial-gradient(circle at center, #1a120b 0%, #110c08 100%); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; transition: opacity 1s ease; }
+        .chocolate-card { transition: all 0.3s ease-out; }
+        .chocolate-card:hover { transform: translateY(-8px); border-color: var(--accent-gold); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+        .section-title, .section-subtitle, .card-item, .chocolate-card { opacity: 0; transform: translateY(30px); }
+        .no-js .section-title, .no-js .section-subtitle, .no-js .card-item, .no-js .chocolate-card { opacity: 1; transform: translateY(0); }
+        .order-status-pill { padding: 4px 12px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; text-transform: capitalize; border: 1px solid; }
+        .status-pending { background-color: rgba(251, 191, 36, 0.1); color: #FBBF24; border-color: rgba(251, 191, 36, 0.3); }
+        .status-confirmed { background-color: rgba(59, 130, 246, 0.1); color: #3B82F6; border-color: rgba(59, 130, 246, 0.3); }
+        .status-preparing { background-color: rgba(168, 85, 247, 0.1); color: #A855F7; border-color: rgba(168, 85, 247, 0.3); }
+        .status-ready { background-color: rgba(34, 197, 94, 0.1); color: #22C55E; border-color: rgba(34, 197, 94, 0.3); }
+        .status-delivered { background-color: rgba(16, 185, 129, 0.1); color: #10B981; border-color: rgba(16, 185, 129, 0.3); }
+        .status-cancelled { background-color: rgba(239, 68, 68, 0.1); color: #EF4444; border-color: rgba(239, 68, 68, 0.3); }
+        .storybook-card:hover { transform: translateY(-5px) scale(1.02); }
+    </style>
+</head>
+<body class="antialiased bg-pattern">
+    <!-- Custom Cursor Elements -->
+    <div id="cursor-dot" class="custom-cursor-dot"></div>
+    <div id="cursor-circle" class="custom-cursor-circle"></div>
+    
+    <!-- Loading Animation -->
+    <div id="loader" class="loader">
+        <div class="text-4xl animate-bounce">🍫</div>
+        <p class="mt-4 text-lg font-serif text-gold">Crafting Your Experience...</p>
+    </div>
+    
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out" id="navbar">
+        <div class="nav-container max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-gold to-bronze rounded-lg flex items-center justify-center shadow-lg">
+                    <i class="fas fa-heart text-primary-dark text-lg"></i>
+                </div>
+                <span class="text-2xl font-serif font-bold text-gold">Koco Delight</span>
+            </div>
+            <div class="hidden lg:flex items-center space-x-8">
+                <a href="#home" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">Home</a>
+                <a href="#chocolates" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">Chocolates</a>
+                <a href="#stories" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">Stories</a>
+                <a href="#about" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">About</a>
+                <a href="#customize" class="nav-link text-primary-light hover:text-gold transition-colors duration-300">Customize</a>
+                 <a href="#" id="my-orders-link" class="nav-link text-primary-light hover:text-gold transition-colors duration-300 hidden">My Orders</a>
+            </div>
+            <div class="hidden lg:flex items-center space-x-4">
+                <button id="google-sign-in" class="sign-in-btn bg-gradient-to-r from-blue-500 to-green-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:scale-105 transition-transform duration-300">
+                    <i class="fab fa-google"></i>
+                    <span>Sign in with Google</span>
+                </button>
+                <div id="user-menu" class="user-menu hidden items-center space-x-3">
+                    <img id="user-avatar" class="w-8 h-8 rounded-full border-2 border-gold" src="" alt="User">
+                    <span id="user-name" class="text-gold font-medium"></span>
+                    <button id="logout-btn" class="text-bronze hover:text-gold transition-colors duration-300">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <button class="lg:hidden text-gold focus:outline-none" id="mobile-menu-btn">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+        </div>
+        <div id="mobile-menu" class="lg:hidden hidden bg-primary-dark/95 backdrop-blur-lg border-t border-gold/20">
+            <div class="px-6 py-4 space-y-4">
+                <a href="#home" class="block text-primary-light hover:text-gold">Home</a>
+                <a href="#chocolates" class="block text-primary-light hover:text-gold">Chocolates</a>
+                <a href="#stories" class="block text-primary-light hover:text-gold">Stories</a>
+                <a href="#about" class="block text-primary-light hover:text-gold">About Us</a>
+                <a href="#customize" class="block text-primary-light hover:text-gold">Customize</a>
+                 <a href="#" id="mobile-my-orders-link" class="block text-primary-light hover:text-gold hidden">My Orders</a>
+                <div class="pt-4 border-t border-gold/20">
+                    <button id="mobile-google-sign-in" class="w-full bg-gradient-to-r from-blue-500 to-green-500 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2">
+                        <i class="fab fa-google"></i>
+                        <span>Sign in with Google</span>
+                    </button>
+                    <div id="mobile-user-menu" class="hidden mt-4 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <img id="mobile-user-avatar" class="w-8 h-8 rounded-full border-2 border-gold" src="" alt="User">
+                            <span id="mobile-user-name" class="text-gold font-medium"></span>
+                        </div>
+                        <button id="mobile-logout-btn" class="text-bronze hover:text-gold">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section id="home" class="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <canvas id="hero-canvas" class="absolute inset-0 w-full h-full"></canvas>
+        <div class="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-primary-dark"></div>
+        <div class="relative z-10 text-center px-6 max-w-4xl">
+            <p class="hero-subtitle text-gold text-lg md:text-xl font-serif italic mb-4">Every Bite a Story</p>
+            <h1 class="hero-title text-6xl md:text-8xl lg:text-9xl font-serif font-bold text-gradient mb-6">Koco Delight</h1>
+            <p class="hero-description text-xl md:text-2xl text-primary-light/90 mb-8 max-w-2xl mx-auto leading-relaxed">Indulge in handcrafted chocolates where passion, tradition, and pure bliss melt into an unforgettable experience.</p>
+            <div class="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="#chocolates" class="btn-gold px-8 py-4 rounded-full font-semibold text-lg hover:scale-105 transform transition-all duration-300 shadow-lg">Explore Our Collection</a>
+                <a href="#customize" class="btn-copper px-8 py-4 rounded-full font-semibold text-lg hover:scale-105 transform transition-all duration-300 shadow-lg">Create Your Own Box</a>
+            </div>
+        </div>
+        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-gold/70 animate-bounce z-10">
+            <a href="#chocolates"><i class="fas fa-chevron-down text-2xl"></i></a>
+        </div>
+    </section>
+    
+    <!-- Our Chocolates Section -->
+    <section id="chocolates" class="py-20 bg-gradient-to-b from-primary-dark to-primary-medium">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-serif font-bold text-gold mb-6 section-title">Our Artisan Collection</h2>
+                <p class="text-xl text-bronze max-w-3xl mx-auto leading-relaxed section-subtitle">Each chocolate is a masterpiece, a story waiting to be told, crafted with the finest ingredients and boundless imagination.</p>
+            </div>
+            <div id="chocolates-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Chocolates will be loaded here by JavaScript -->
+                 <div id="chocolates-loading" class="col-span-full text-center py-12">
+                    <div class="text-4xl animate-spin">🍫</div>
+                    <p class="text-gold mt-4">Loading our delicious chocolates...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stories Section -->
+    <section id="stories" class="py-20 bg-primary-medium">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-serif font-bold text-gold mb-6 section-title">The Storybooks</h2>
+                <p class="text-xl text-bronze max-w-3xl mx-auto leading-relaxed section-subtitle">Beyond the flavor, discover the tales that inspire our creations. Each chocolate has a soul, a narrative woven into its essence.</p>
+            </div>
+            <div id="storybooks-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Storybooks will be loaded here -->
+                 <div id="stories-loading" class="col-span-full text-center py-12">
+                    <div class="text-4xl animate-spin">📖</div>
+                    <p class="text-gold mt-4">Unveiling the stories...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- About Section -->
+    <section id="about" class="py-20 bg-primary-dark">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div class="order-2 lg:order-1">
+                <h2 class="text-5xl md:text-6xl font-serif font-bold text-gold mb-6 section-title">Our Story</h2>
+                <p class="text-lg text-primary-light/90 mb-6 leading-relaxed section-subtitle">
+                    Born from a passion for perfection, Koco Delight has been crafting extraordinary chocolates for over two decades. Our master chocolatiers combine traditional European techniques with innovative flavors to create an unparalleled tasting experience.
+                </p>
+                <a href="#customize" class="btn-gold px-8 py-4 rounded-full font-semibold text-lg hover:scale-105 transform transition-all duration-300 shadow-lg">Start Your Journey</a>
+            </div>
+            <div class="order-1 lg:order-2">
+                <img src="https://images.unsplash.com/photo-1549007994-cb92caebd54b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Chocolate Making" class="rounded-2xl shadow-2xl w-full h-96 object-cover">
+            </div>
+        </div>
+    </section>
+    
+    <!-- Customize Section -->
+    <section id="customize" class="py-20 bg-gradient-to-b from-primary-dark to-primary-medium">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-serif font-bold text-gold mb-6 section-title">Create Your Perfect Box</h2>
+                <p class="text-xl text-bronze max-w-3xl mx-auto leading-relaxed section-subtitle">Design a personalized chocolate collection. Choose from our selection and create the perfect gift or personal indulgence.</p>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div>
+                    <h3 class="text-2xl font-serif font-semibold text-gold mb-6">Available Chocolates</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="chocolate-options">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-serif font-semibold text-gold mb-6">Your Custom Box (Max 12)</h3>
+                    <div class="custom-box glass-effect rounded-2xl p-6 min-h-[300px] grid grid-cols-4 gap-3" id="custom-box">
+                        <!-- Chocolates added here -->
+                    </div>
+                    <div class="flex justify-between items-center mt-6">
+                        <div class="text-2xl font-bold text-gold">Total: $<span id="total-price">0.00</span></div>
+                        <div class="space-x-4">
+                            <button id="clear-box" class="btn-copper px-6 py-3 rounded-lg font-semibold">Clear Box</button>
+                            <button id="proceed-to-order-btn" class="btn-gold px-6 py-3 rounded-lg font-semibold">Place Order</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <footer class="bg-primary-dark/90 py-12 border-t border-gold/20">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <p class="text-bronze">&copy; 2024 Koco Delight. All rights reserved. Crafted with <i class="fas fa-heart text-gold"></i>.</p>
+        </div>
+    </footer>
+    
+    <!-- Modals -->
+    <div id="location-modal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="glass-effect rounded-2xl p-8 w-full max-w-md transform scale-95 transition-transform duration-300">
+            <h3 class="text-2xl font-serif font-bold text-gold mb-6 text-center">Set Delivery Location</h3>
+            <div class="space-y-4">
+                 <input type="text" id="manual-address" placeholder="Enter your full address" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light focus:border-gold outline-none">
+                <input type="tel" id="location-phone" placeholder="Phone Number (for updates)" class="w-full px-4 py-3 rounded-lg bg-transparent border border-bronze/30 text-primary-light focus:border-gold outline-none">
+            </div>
+            <div class="flex space-x-4 mt-6">
+                <button id="cancel-location" class="flex-1 btn-copper py-3 rounded-lg">Cancel</button>
+                <button id="confirm-location" class="flex-1 btn-gold py-3 rounded-lg">Confirm</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="order-modal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="glass-effect rounded-2xl p-8 w-full max-w-3xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto">
+             <div id="modal-content">
+                <h3 class="text-2xl font-serif font-bold text-gold mb-6 text-center">Confirm Your Order</h3>
+                <form id="order-form" class="space-y-6">
+                    <div class="bg-primary-dark/50 rounded-lg p-4">
+                        <h4 class="text-gold font-semibold mb-2">Customer Information</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <input type="text" id="customer-name" required class="w-full px-4 py-2 rounded-lg bg-transparent border border-bronze/30 text-primary-light" readonly>
+                            <input type="email" id="customer-email" required class="w-full px-4 py-2 rounded-lg bg-transparent border border-bronze/30 text-primary-light" readonly>
+                        </div>
+                        <input type="tel" id="customer-phone" required placeholder="Phone Number*" class="w-full mt-4 px-4 py-2 rounded-lg bg-transparent border border-bronze/30 text-primary-light">
+                    </div>
+                    <div class="bg-primary-dark/50 rounded-lg p-4">
+                         <h4 class="text-gold font-semibold mb-2">Delivery Information</h4>
+                         <div class="flex space-x-2">
+                             <input type="text" id="customer-address" required placeholder="Delivery Address*" class="flex-1 px-4 py-2 rounded-lg bg-transparent border border-bronze/30 text-primary-light">
+                             <button type="button" id="change-address-btn" class="px-4 py-2 bg-bronze/20 border border-bronze/30 rounded-lg text-bronze"><i class="fas fa-edit"></i></button>
+                         </div>
+                    </div>
+                     <div class="bg-primary-dark/50 rounded-lg p-4">
+                         <h4 class="text-gold font-semibold mb-2">Order Summary</h4>
+                         <div id="order-summary" class="space-y-1 mb-2"></div>
+                         <div class="border-t border-gold/20 pt-2 space-y-1 text-sm">
+                             <div class="flex justify-between"><span>Subtotal:</span><span>$<span id="modal-subtotal">0.00</span></span></div>
+                             <div class="flex justify-between"><span>Delivery:</span><span>$<span id="modal-delivery-fee">0.00</span></span></div>
+                             <div class="flex justify-between"><span>Tax (8%):</span><span>$<span id="modal-tax">0.00</span></span></div>
+                             <div class="flex justify-between font-bold text-base text-gold mt-1 pt-1 border-t border-gold/20"><span>Total:</span><span>$<span id="modal-total-price">0.00</span></span></div>
+                         </div>
+                    </div>
+                    <div id="order-status" class="text-center font-semibold"></div>
+                    <div class="flex space-x-4">
+                        <button type="button" id="cancel-order-btn" class="flex-1 btn-copper py-3 rounded-lg">Cancel</button>
+                        <button type="submit" id="confirm-order-btn" class="flex-1 btn-gold py-3 rounded-lg"><i class="fas fa-credit-card mr-2"></i>Confirm Order</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Orders Modal -->
+    <div id="my-orders-modal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="glass-effect rounded-2xl p-8 w-full max-w-4xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-serif font-bold text-gold">My Orders</h3>
+                <button id="close-orders-modal-btn" class="text-gold/70 hover:text-gold text-2xl">&times;</button>
+            </div>
+            <div id="my-orders-content" class="space-y-4">
+                <!-- Orders will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Storybook Modal -->
+    <div id="storybook-modal" class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="glass-effect rounded-2xl p-8 w-full max-w-2xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto">
+            <div id="storybook-modal-content">
+                <!-- Story content will be loaded here -->
+            </div>
+            <button id="close-storybook-modal" class="btn-copper py-2 px-4 rounded-lg mt-6">Close</button>
+        </div>
+    </div>
+    
+    <script>
+        // --- SCRIPT START ---
+        
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBs-7nJ3-L2IISbkB_B2PB6E_1y9ZmImUw",
+            authDomain: "koco-delight.firebaseapp.com",
+            projectId: "koco-delight",
+            storageBucket: "koco-delight.firebasestorage.app",
+            messagingSenderId: "587407788224",
+            appId: "1:587407788224:web:dfe3a40919aabfc2200525",
+            measurementId: "G-QZRMX4WN3G"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+        // Global state
+        let heroScene, heroCamera, heroRenderer;
+        const chocolates3D = [];
+        let mouseX = 0, mouseY = 0;
+        let boxItems = [];
+        let userLocation = null;
+        let userPhone = null;
+        let currentUser = null;
+        let chocolateData = [];
+        let storybookData = [];
+        let ordersUnsubscribe = null;
+
+        // --- Core Functions ---
+
+        async function loadWebsiteData() {
+            console.log('🍫 Loading website data from Firestore...');
+            const chocolatesGrid = document.getElementById('chocolates-grid');
+            const storiesContainer = document.getElementById('storybooks-container');
+            const chocolatesLoading = document.getElementById('chocolates-loading');
+            const storiesLoading = document.getElementById('stories-loading');
+            
+            try {
+                // Fetch Chocolates
+                const chocoDoc = await db.collection('website-data').doc('chocolates').get();
+                if (chocoDoc.exists && chocoDoc.data().chocolates) {
+                    chocolateData = chocoDoc.data().chocolates;
+                    populateChocolatesGrid();
+                    populateCustomizeOptions();
+                } else {
+                     chocolatesGrid.innerHTML = '<p class="text-bronze col-span-full text-center">No chocolates available at the moment. Please check back soon!</p>';
+                }
+
+                // Fetch Stories
+                const storyDoc = await db.collection('website-data').doc('storybooks').get();
+                if (storyDoc.exists && storyDoc.data().storybooks) {
+                    storybookData = storyDoc.data().storybooks;
+                    populateStorybooks();
+                } else {
+                    storiesContainer.innerHTML = '<p class="text-bronze col-span-full text-center">Our storybooks are being written... Come back soon!</p>';
+                }
+
+            } catch (error) {
+                console.error("Error loading website data:", error);
+                 chocolatesGrid.innerHTML = '<p class="text-red-400 col-span-full text-center">Could not load chocolates. Please try refreshing the page.</p>';
+                 storiesContainer.innerHTML = '<p class="text-red-400 col-span-full text-center">Could not load stories. Please try refreshing the page.</p>';
+            } finally {
+                if(chocolatesLoading) chocolatesLoading.style.display = 'none';
+                if(storiesLoading) storiesLoading.style.display = 'none';
+            }
+        }
+
+        // --- Authentication ---
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                updateUIForUser(user);
+                db.collection('users').doc(user.uid).get().then(doc => {
+                    if (!doc.exists) {
+                        db.collection('users').doc(user.uid).set({
+                            name: user.displayName, email: user.email, photoURL: user.photoURL,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    } else {
+                        const data = doc.data();
+                        userLocation = data.addresses && data.addresses.length > 0 ? data.addresses[0] : null;
+                        userPhone = data.phone || null;
+                    }
+                });
+            } else {
+                currentUser = null;
+                if(ordersUnsubscribe) ordersUnsubscribe();
+                updateUIForSignedOut();
+            }
+        });
+
+        function signInWithGoogle() {
+            auth.signInWithPopup(googleProvider).catch(error => console.error("Auth Error:", error));
+        }
+
+        function signOut() {
+            auth.signOut();
+        }
+        
+        function updateUIForUser(user) {
+            document.querySelectorAll('#google-sign-in, #mobile-google-sign-in').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('#user-menu, #mobile-user-menu').forEach(el => el.style.display = 'flex');
+            document.querySelectorAll('#my-orders-link, #mobile-my-orders-link').forEach(el => el.classList.remove('hidden'));
+            document.querySelectorAll('#user-avatar, #mobile-user-avatar').forEach(el => el.src = user.photoURL);
+            document.querySelectorAll('#user-name, #mobile-user-name').forEach(el => el.textContent = user.displayName);
+        }
+
+        function updateUIForSignedOut() {
+            document.querySelectorAll('#google-sign-in, #mobile-google-sign-in').forEach(el => el.style.display = 'flex');
+            document.querySelectorAll('#user-menu, #mobile-user-menu').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('#my-orders-link, #mobile-my-orders-link').forEach(el => el.classList.add('hidden'));
+        }
+
+        // --- UI Population ---
+        
+        function populateChocolatesGrid() {
+            const grid = document.getElementById('chocolates-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            chocolateData.forEach(chocolate => {
+                const card = document.createElement('div');
+                card.className = 'chocolate-card glass-effect rounded-2xl p-6 text-center';
+                card.innerHTML = `
+                    <img src="${chocolate.imageUrl}" alt="${chocolate.name}" class="w-32 h-32 object-cover mx-auto rounded-full mb-4 shadow-lg" onerror="this.src='https://placehold.co/128x128/3C2A21/D5CEA3?text=${chocolate.emoji}'">
+                    <h3 class="text-xl font-serif font-bold text-gold mb-2">${chocolate.name}</h3>
+                    <p class="text-bronze text-sm mb-4 h-10">${chocolate.description}</p>
+                    <div class="font-bold text-lg text-primary-light mb-4">$${chocolate.price.toFixed(2)}</div>
+                    <button class="btn-gold w-full py-2 rounded-lg" onclick="addToBox('${chocolate.id}')">Add to Box</button>
+                `;
+                grid.appendChild(card);
+            });
+            initAnimations();
+        }
+        
+        function populateStorybooks() {
+            const container = document.getElementById('storybooks-container');
+            if (!container) return;
+            container.innerHTML = '';
+            storybookData.forEach(story => {
+                const chocolate = chocolateData.find(c => c.id === story.chocolateId);
+                const card = document.createElement('div');
+                card.className = 'storybook-card glass-effect rounded-2xl p-6 text-center transition-transform duration-300 cursor-pointer';
+                card.onclick = () => showStorybookModal(story.id);
+                card.innerHTML = `
+                    <div class="text-5xl mb-4">${chocolate ? chocolate.emoji : '📖'}</div>
+                    <h3 class="text-xl font-serif font-bold text-gold mb-2">${story.title}</h3>
+                    <p class="text-sm text-bronze">A tale for ${story.chocolateName}</p>
+                `;
+                container.appendChild(card);
+            });
+             initAnimations();
+        }
+
+        function populateCustomizeOptions() {
+            const container = document.getElementById('chocolate-options');
+            if (!container) return;
+            container.innerHTML = '';
+            chocolateData.forEach(choco => {
+                const div = document.createElement('div');
+                div.className = 'text-center p-3 rounded-xl glass-effect transition-all hover:scale-105 cursor-pointer';
+                div.onclick = () => addToBox(choco.id);
+                div.innerHTML = `
+                    <div class="text-3xl mb-1">${choco.emoji}</div>
+                    <p class="text-sm font-medium text-gold">${choco.name}</p>
+                    <p class="text-xs font-bold text-bronze">$${choco.price.toFixed(2)}</p>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        // --- Order & Customization Logic ---
+        
+        function addToBox(chocolateId) {
+            if (boxItems.length >= 12) return;
+            const chocolate = chocolateData.find(c => c.id === chocolateId);
+            if(chocolate) boxItems.push(chocolate);
+            updateBox();
+        }
+
+        function updateBox() {
+            const boxContainer = document.getElementById('custom-box');
+            const totalPriceEl = document.getElementById('total-price');
+            if (!boxContainer || !totalPriceEl) return;
+            
+            boxContainer.innerHTML = '';
+            let currentTotal = 0;
+            
+            if (boxItems.length === 0) {
+                 boxContainer.innerHTML = `<div class="col-span-4 flex items-center justify-center text-bronze/50 h-full"><p>Your box is empty</p></div>`;
+            } else {
+                boxItems.forEach((item, index) => {
+                    currentTotal += item.price;
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'relative flex items-center justify-center bg-primary-dark/50 rounded-lg text-3xl';
+                    itemEl.innerHTML = `<span>${item.emoji}</span><button class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full h-5 w-5 text-xs flex items-center justify-center font-mono" onclick="removeFromBox(${index})">&times;</button>`;
+                    boxContainer.appendChild(itemEl);
+                });
+            }
+            totalPriceEl.textContent = currentTotal.toFixed(2);
+        }
+
+        function removeFromBox(index) {
+            boxItems.splice(index, 1);
+            updateBox();
+        }
+        
+        document.getElementById('clear-box')?.addEventListener('click', () => {
+            boxItems = [];
+            updateBox();
+        });
+
+        document.getElementById('proceed-to-order-btn')?.addEventListener('click', () => {
+            if (boxItems.length === 0) return alert("Your box is empty!");
+            if (!currentUser) return signInWithGoogle();
+            
+            // Pre-fill and show order modal
+            document.getElementById('customer-name').value = currentUser.displayName;
+            document.getElementById('customer-email').value = currentUser.email;
+            document.getElementById('customer-phone').value = userPhone || '';
+            document.getElementById('customer-address').value = userLocation || '';
+            
+            updateOrderSummary();
+            openModal('order-modal');
+        });
+        
+        function updateOrderSummary() {
+            const summaryEl = document.getElementById('order-summary');
+            const subtotal = boxItems.reduce((acc, item) => acc + item.price, 0);
+            const deliveryFee = subtotal >= 25 ? 0 : 5.00;
+            const tax = subtotal * 0.08;
+            const total = subtotal + deliveryFee + tax;
+            
+            summaryEl.innerHTML = boxItems.map(item => `<div class="flex justify-between text-sm"><span>${item.emoji} ${item.name}</span> <span>$${item.price.toFixed(2)}</span></div>`).join('');
+            
+            document.getElementById('modal-subtotal').textContent = subtotal.toFixed(2);
+            document.getElementById('modal-delivery-fee').textContent = deliveryFee.toFixed(2);
+            document.getElementById('modal-tax').textContent = tax.toFixed(2);
+            document.getElementById('modal-total-price').textContent = total.toFixed(2);
+        }
+
+        document.getElementById('order-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('confirm-order-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Processing...`;
+
+            const subtotal = boxItems.reduce((acc, item) => acc + item.price, 0);
+            const deliveryFee = subtotal >= 25 ? 0 : 5.00;
+            const tax = subtotal * 0.08;
+
+            const orderData = {
+                customerId: currentUser.uid,
+                customerName: document.getElementById('customer-name').value,
+                customerEmail: document.getElementById('customer-email').value,
+                customerPhone: document.getElementById('customer-phone').value,
+                deliveryAddress: document.getElementById('customer-address').value,
+                items: boxItems,
+                subtotal, deliveryFee, tax,
+                totalPrice: subtotal + deliveryFee + tax,
+                status: 'pending',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                orderId: `KD-${Date.now()}`
+            };
+
+            try {
+                await db.collection('orders').add(orderData);
+                await db.collection('users').doc(currentUser.uid).update({
+                    phone: orderData.customerPhone,
+                    addresses: firebase.firestore.FieldValue.arrayUnion(orderData.deliveryAddress)
+                });
+                boxItems = [];
+                updateBox();
+                closeModal('order-modal');
+                alert(`Order placed successfully! Your order ID is ${orderData.orderId}`);
+            } catch (error) {
+                console.error("Order failed:", error);
+                alert("Failed to place order. Please try again.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-credit-card mr-2"></i>Confirm Order`;
+            }
+        });
+
+        // --- My Orders ---
+        function showMyOrders() {
+            if (!currentUser) return;
+            const content = document.getElementById('my-orders-content');
+            content.innerHTML = '<p class="text-gold">Loading your orders...</p>';
+            openModal('my-orders-modal');
+
+            if(ordersUnsubscribe) ordersUnsubscribe();
+
+            ordersUnsubscribe = db.collection('orders')
+                .where('customerId', '==', currentUser.uid)
+                .orderBy('createdAt', 'desc')
+                .onSnapshot(snapshot => {
+                    if (snapshot.empty) {
+                        content.innerHTML = '<p class="text-bronze text-center">You have no past orders.</p>';
+                        return;
+                    }
+                    content.innerHTML = snapshot.docs.map(doc => {
+                        const order = doc.data();
+                        const date = order.createdAt.toDate().toLocaleDateString();
+                        return `
+                            <div class="glass-effect p-4 rounded-lg">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="font-bold text-gold">Order ID: ${order.orderId}</p>
+                                        <p class="text-sm text-bronze">${date}</p>
+                                    </div>
+                                    <span class="order-status-pill status-${order.status}">${order.status}</span>
+                                </div>
+                                <div class="text-sm mt-2">${order.items.map(i => i.emoji).join(' ')}</div>
+                                <p class="text-right font-bold mt-2 text-primary-light">Total: $${order.totalPrice.toFixed(2)}</p>
+                            </div>
+                        `;
+                    }).join('');
+                });
+        }
+        
+        // --- Modals ---
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div > div').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.add('opacity-0');
+            modal.querySelector('div > div').classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+        
+        function showStorybookModal(storyId) {
+            const story = storybookData.find(s => s.id === storyId);
+            if (!story) return;
+            const contentEl = document.getElementById('storybook-modal-content');
+            contentEl.innerHTML = `
+                <h3 class="text-3xl font-serif font-bold text-gold mb-4">${story.title}</h3>
+                <p class="text-primary-light whitespace-pre-line leading-relaxed">${story.content}</p>
+            `;
+            openModal('storybook-modal');
+        }
+
+        // --- 3D Hero ---
+        function initHero3D() {
+             const canvas = document.getElementById('hero-canvas');
+             if (!canvas) return;
+             heroScene = new THREE.Scene();
+             heroCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+             heroRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+             heroRenderer.setSize(window.innerWidth, window.innerHeight);
+             const light = new THREE.DirectionalLight(0xffffff, 1.5);
+             light.position.set(10, 10, 10);
+             heroScene.add(light);
+             heroScene.add(new THREE.AmbientLight(0xD5CEA3, 1));
+             const materials = [ new THREE.MeshStandardMaterial({ color: 0x3C2A21, roughness: 0.4, metalness: 0.6 }), new THREE.MeshStandardMaterial({ color: 0xD5CEA3, roughness: 0.3, metalness: 0.7 }), new THREE.MeshStandardMaterial({ color: 0xA27B5C, roughness: 0.5, metalness: 0.4 })];
+             for (let i = 0; i < 40; i++) {
+                 const geometry = new THREE.IcosahedronGeometry(0.8, 0);
+                 const material = materials[Math.floor(Math.random() * materials.length)];
+                 const chocolate = new THREE.Mesh(geometry, material);
+                 chocolate.position.set((Math.random() - 0.5) * 25, (Math.random() - 0.5) * 25, (Math.random() - 0.5) * 25);
+                 chocolate.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+                 const scale = Math.random() * 0.7 + 0.3;
+                 chocolate.scale.set(scale, scale, scale);
+                 chocolates3D.push(chocolate);
+                 heroScene.add(chocolate);
+             }
+             heroCamera.position.z = 12;
+             document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - window.innerWidth/2) / 100;
+                mouseY = (e.clientY - window.innerHeight/2) / 100;
+             });
+             animateHero();
+        }
+        function animateHero() {
+            if (!heroRenderer) return;
+            requestAnimationFrame(animateHero);
+            heroCamera.position.x += (mouseX - heroCamera.position.x) * 0.05;
+            heroCamera.position.y += (-mouseY - heroCamera.position.y) * 0.05;
+            heroCamera.lookAt(heroScene.position);
+            chocolates3D.forEach(c => { c.rotation.x += 0.002; c.rotation.y += 0.003; });
+            heroRenderer.render(heroScene, heroCamera);
+        }
+        
+        // --- Animations ---
+        function initAnimations() {
+            if (typeof gsap === 'undefined') return;
+            gsap.registerPlugin(ScrollTrigger);
+            gsap.timeline({ delay: 0.2 })
+                .fromTo('.hero-subtitle', { opacity: 0, y: 30 }, { duration: 1, opacity: 1, y: 0, ease: 'power3.out' })
+                .fromTo('.hero-title', { opacity: 0, y: 50 }, { duration: 1.2, opacity: 1, y: 0, ease: 'power3.out' }, '-=0.7')
+                .fromTo('.hero-description', { opacity: 0, y: 30 }, { duration: 1, opacity: 1, y: 0, ease: 'power3.out' }, '-=0.5')
+                .fromTo('.hero-cta', { opacity: 0, y: 30 }, { duration: 0.8, opacity: 1, y: 0, ease: 'power3.out' }, '-=0.3');
+            
+            gsap.utils.toArray('.section-title, .section-subtitle, .card-item, .chocolate-card, .storybook-card').forEach(el => {
+                gsap.fromTo(el, { opacity: 0, y: 30 }, {
+                    scrollTrigger: { trigger: el, start: 'top 85%', toggleActions: 'play none none none' },
+                    opacity: 1, y: 0, duration: 1, ease: 'power3.out'
+                });
+            });
+        }
+        
+        // --- Event Listeners & Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Loader
+            const loader = document.getElementById('loader');
+            setTimeout(() => {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.style.display = 'none', 1000);
+            }, 1500);
+
+            // Init
+            loadWebsiteData();
+            initHero3D();
+            initAnimations();
+            updateBox();
+            
+            // Clicks
+            document.querySelectorAll('#google-sign-in, #mobile-google-sign-in').forEach(btn => btn.addEventListener('click', signInWithGoogle));
+            document.querySelectorAll('#logout-btn, #mobile-logout-btn').forEach(btn => btn.addEventListener('click', signOut));
+            document.getElementById('mobile-menu-btn').addEventListener('click', () => document.getElementById('mobile-menu').classList.toggle('hidden'));
+            document.querySelectorAll('#my-orders-link, #mobile-my-orders-link').forEach(link => link.addEventListener('click', showMyOrders));
+            document.getElementById('close-orders-modal-btn').addEventListener('click', () => closeModal('my-orders-modal'));
+            document.getElementById('close-storybook-modal').addEventListener('click', () => closeModal('storybook-modal'));
+            document.getElementById('cancel-order-btn').addEventListener('click', () => closeModal('order-modal'));
+            document.getElementById('change-address-btn').addEventListener('click', () => { closeModal('order-modal'); openModal('location-modal'); });
+            document.getElementById('cancel-location').addEventListener('click', () => closeModal('location-modal'));
+            document.getElementById('confirm-location').addEventListener('click', () => {
+                userLocation = document.getElementById('manual-address').value;
+                userPhone = document.getElementById('location-phone').value;
+                closeModal('location-modal');
+            });
+            
+            // Cursor
+            const dot = document.getElementById('cursor-dot');
+            const circle = document.getElementById('cursor-circle');
+            window.addEventListener('mousemove', e => {
+                dot.style.left = e.clientX + 'px';
+                dot.style.top = e.clientY + 'px';
+                circle.style.left = e.clientX + 'px';
+                circle.style.top = e.clientY + 'px';
+            });
+            document.querySelectorAll('a, button, .chocolate-card, .storybook-card').forEach(el => {
+                el.addEventListener('mouseenter', () => circle.classList.add('cursor-grow'));
+                el.addEventListener('mouseleave', () => circle.classList.remove('cursor-grow'));
+            });
+        });
+
+        window.addEventListener('resize', () => {
+             if (heroCamera && heroRenderer) {
+                heroCamera.aspect = window.innerWidth / window.innerHeight;
+                heroCamera.updateProjectionMatrix();
+                heroRenderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+
+        // --- SCRIPT END ---
+    </script>
+</body>
+</html>
